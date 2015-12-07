@@ -1,0 +1,378 @@
+#define DUMP_TRAFFIC 0
+
+#include "startup.hh"
+
+#include <iostream>
+#include <iomanip>
+#include "display.hh"
+#include "modal_error.hh"
+#include "mac16.hh"
+#include "widgets.hh"
+#include "pkdb.hh"
+
+#ifdef __WIN32__
+#else
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
+
+#if DUMP_TRAFFIC
+static char safe_char(char c) {
+  if(c < 0x20 || c > 0x7E) return '.';
+  else return c;
+}
+
+static void hexdump(const char* who, const uint8_t* buf, size_t size) {
+  std::cout << who << ":" << std::endl;
+  for(size_t base = 0; base < size; base += 16) {
+    std::cout << "  ";
+    for(size_t n = base; n < base+16; ++n) {
+      if(n < size) std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)buf[n];
+      else std::cout << "  ";
+      if((n&7)==7) std::cout << "  ";
+      else std::cout << " ";
+    }
+    std::cout << "|";
+    for(size_t n = base; n < base+16; ++n) {
+      if(n < size) std::cout << safe_char(buf[n]);
+      else std::cout << " ";
+    }
+    std::cout << "|" << std::endl;
+  }
+}
+#endif
+
+static std::forward_list<Net::SockStream*> socks = {&server_socket};
+
+static bool try_make_connection(Display& display,
+                                const Net::Address& address,
+                                int number,
+                                std::string& err) {
+  auto str = address.ToLongString();
+  display.Statusf("Attempting connection to %s (%i)...", str.c_str(), number);
+  err.clear();
+  Net::IOResult res = server_socket.Connect(err, address);
+  if(res == Net::IOResult::WOULD_BLOCK) {
+    while(Net::Select(nullptr, nullptr, nullptr, nullptr, &socks, nullptr,
+                      nullptr, 3000000)
+          .GetWritableSockStreams().empty())
+      {}
+    if(server_socket.HasError(err)) {
+      std::cerr << "Unable to connect to " << address.ToLongString() << ": " << err << std::endl;
+      server_socket.Close();
+      return false;
+    }
+    return true;
+  }
+  else {
+    if(res != Net::IOResult::OKAY)
+      std::cerr << "Unable to connect to " << address.ToLongString() << ": " << err << std::endl;
+    return res == Net::IOResult::OKAY;
+  }
+}
+
+static int receive_on_server_socket(void*, void* buf, size_t bufsz) {
+  size_t len = bufsz;
+  std::string err;
+  Net::IOResult res = server_socket.Receive(err, buf, len);
+  switch(res) {
+  case Net::IOResult::WOULD_BLOCK: return 0;
+  case Net::IOResult::CONNECTION_CLOSED:
+  case Net::IOResult::MSGSIZE:
+  case Net::IOResult::ERROR: return -1;
+  case Net::IOResult::OKAY: break;
+  }
+  // try to read more data, in case some has arrived
+  int res2 = len == 0 ? 0
+    : receive_on_server_socket(nullptr, (uint8_t*)buf + len, bufsz-len);
+  if(res2 < 0) res2 = 0;
+  return len + res2;
+}
+
+// TODO: We won't be sending much data, so do we need to worry about buffering?
+static int send_on_server_socket(void*, const void* buf, size_t bufsz) {
+#if DUMP_TRAFFIC
+  hexdump("to server", reinterpret_cast<const uint8_t*>(buf), bufsz);
+#endif
+  do {
+    std::string err;
+    Net::IOResult res = server_socket.Send(err, buf, bufsz);
+    switch(res) {
+    case Net::IOResult::WOULD_BLOCK: break;
+    case Net::IOResult::CONNECTION_CLOSED:
+    case Net::IOResult::MSGSIZE:
+    case Net::IOResult::ERROR: return -1;
+    case Net::IOResult::OKAY: return 0;;
+    }
+    (void)Net::Select(nullptr,nullptr,nullptr,nullptr,&socks,nullptr,nullptr);
+  } while(1);
+}
+
+static void fatal(void* d, const char* why) {
+  Display& display = *(Display*)d;
+  std::string bah = std::string("libtttp error: ") + why;
+  std::cerr << bah << std::endl;
+  do_modal_error(display, bah);
+  throw quit_exception();
+}
+
+static void foul(void* d, const char* why) {
+  Display& display = *(Display*)d;
+  std::string bah = std::string("An error occurred and it's the server's fault: ") + why;
+  std::cerr << bah << std::endl;
+  do_modal_error(display, bah);
+  throw quit_exception();
+}
+
+bool AttemptConnection(Display& display,
+                       const std::string& canon_name,
+                       std::forward_list<Net::Address> targets,
+                       const std::string& username,
+                       const uint8_t* password_pointer, size_t password_len,
+                       bool no_crypt) {
+  bool server_sent_key = false;
+  server_socket.Close();
+#ifdef __WIN32__
+#error "https://msdn.microsoft.com/en-us/library/windows/desktop/aa366761%28v=vs.85%29.aspx"
+#else
+  int passfd = -1;
+  size_t passfile_len = 0;
+#define CLOSE_AUTOPASSFILE() \
+  if(passfd >= 0) close(passfd);
+#define UNMAP_AUTOPASSFILE() \
+  munmap(const_cast<uint8_t*>(password_pointer), password_len);
+#endif
+  if(autopassfile) {
+    assert(!no_auth);
+#ifdef __WIN32__
+#else
+    passfd = open(autopassfile, O_RDONLY|O_NOCTTY);
+    if(passfd < 0) {
+      Widgets::ModalInfo(display, std::string("Unable to open the password file.\n\n")+autopassfile+": "+strerror(errno), MAC16_BLACK|(MAC16_RED<<4));
+      throw quit_exception();
+    }
+    auto sought = lseek(passfd, 0, SEEK_END);
+    if(sought < 0 || lseek(passfd, 0, SEEK_SET) != 0) {
+      close(passfd);
+      Widgets::ModalInfo(display, std::string("Unable to seek in the password file.\n\n")+autopassfile+": "+strerror(errno), MAC16_BLACK|(MAC16_RED<<4));
+      throw quit_exception();
+    }
+    passfile_len = sought;
+  }
+#endif
+  server_socket = std::move(Net::SockStream()); // make sure it's clean
+  bool success = false;
+  int idx = 0;
+  std::string err;
+  for(const auto& address : targets) {
+    if(try_make_connection(display, address, ++idx, err)) {
+      success = true;
+      break;
+    }
+  }
+  if(!success) {
+    display.Statusf("");
+    CLOSE_AUTOPASSFILE();
+    Widgets::ModalInfo(display, std::string("All of our attempts to connect to the server failed. The error was: ")+err, MAC16_BLACK|(MAC16_ORANGE<<4));
+    return false;
+  }
+  display.Statusf("Performing handshake...");
+  // we have a connection, do the handshake
+  if(tttp) {
+    tttp_client_fini(tttp);
+    tttp = nullptr;
+  }
+  tttp = tttp_client_init(&display,
+                          receive_on_server_socket,
+                          send_on_server_socket,
+                          nullptr, fatal, foul);
+  if(queue_depth > 0)
+    tttp_client_set_queue_depth(tttp, queue_depth);
+  uint8_t public_key[TTTP_PUBLIC_KEY_LENGTH];
+  tttp_handshake_result res;
+  if(!no_auth) {
+    do {
+      res = tttp_client_query_server(tttp, public_key, nullptr, nullptr);
+      switch(res) {
+      case TTTP_HANDSHAKE_REJECTED:
+      case TTTP_HANDSHAKE_ADVANCE: break;
+      case TTTP_HANDSHAKE_CONTINUE:
+        (void)Net::Select(nullptr,nullptr,nullptr,
+                          &socks,nullptr,nullptr,nullptr);
+        break;
+      default:
+        server_socket.Close();
+        CLOSE_AUTOPASSFILE();
+        display.Statusf("");
+        return false;
+      }
+    } while(res != TTTP_HANDSHAKE_REJECTED && res != TTTP_HANDSHAKE_ADVANCE);
+    server_sent_key = (res == TTTP_HANDSHAKE_ADVANCE);
+    if(res == TTTP_HANDSHAKE_REJECTED) {
+      if(!PKDB::GetPublicKey(canon_name, public_key)) {
+        display.Statusf("");
+        Widgets::ModalInfo(display, "The server has a hidden public key. You must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when Control is held.");
+        server_socket.Close();
+        CLOSE_AUTOPASSFILE();
+        return false;
+      }
+      /* we have a public key on file, use it */
+    }
+    else if(tttp_key_is_null_public_key(public_key)) {
+      display.Statusf("");
+      uint8_t filed_public_key[TTTP_PUBLIC_KEY_LENGTH];
+      if(PKDB::GetPublicKey(canon_name, filed_public_key)) {
+        Widgets::ModalInfo(display, "The server is refusing to confirm its identity, but it was perfectly happy to do so in the past. SOMEONE IS PROBABLY TRYING TO IMPERSONATE THIS SERVER!\n\nContact the server operator.\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
+        server_socket.Close();
+        CLOSE_AUTOPASSFILE();
+        return false;
+      }
+      else if(!Widgets::ModalConfirm(display, "This server is refusing to authenticate itself. Its identity cannot be proven. Encryption is still possible, but who knows who's on the other side?\n\nAre you sure you want to continue connecting?")) {
+        server_socket.Close();
+        CLOSE_AUTOPASSFILE();
+        return false;
+      }
+      display.Statusf("Performing handshake...");
+    }
+    else {
+      uint8_t filed_public_key[TTTP_PUBLIC_KEY_LENGTH];
+      if(PKDB::GetPublicKey(canon_name, filed_public_key)) {
+        if(memcmp(public_key, filed_public_key, TTTP_PUBLIC_KEY_LENGTH)) {
+          display.Statusf("");
+          server_socket.Close();
+          CLOSE_AUTOPASSFILE();
+          char old_fingerprint[TTTP_FINGERPRINT_BUFFER_SIZE];
+          tttp_get_key_fingerprint(public_key, old_fingerprint);
+          char new_fingerprint[TTTP_FINGERPRINT_BUFFER_SIZE];
+          tttp_get_key_fingerprint(filed_public_key, new_fingerprint);
+          Widgets::ModalInfo(display, std::string("The server's public key has changed. Someone may be trying to impersonate this server... or the key may have changed due to unavoidable circumstances. Contact the server operator.\n\nOld fingerprint: ")+old_fingerprint+"\nNew fingerprint: "+new_fingerprint+"\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
+          return false;
+        }
+      }
+      else {
+        char fingerprint[TTTP_FINGERPRINT_BUFFER_SIZE];
+        tttp_get_key_fingerprint(public_key, fingerprint);
+        display.Statusf("");
+        if(Widgets::ModalConfirm(display, std::string("You have never connected to ")+canon_name+" before. The public key fingerprint is:\n\n"+fingerprint+"\n\nWould you like to remember this key, and continue connecting?"))
+          PKDB::AddPublicKey(canon_name, public_key);
+        else
+          return false;
+        display.Statusf("Performing handshake...");
+      }
+    }
+  }
+  tttp_client_request_flags(tttp, no_crypt ? 0 : TTTP_FLAG_ENCRYPTION);
+  do {
+    res = tttp_client_pump_flags(tttp);
+    switch(res) {
+    case TTTP_HANDSHAKE_ADVANCE: break;
+    case TTTP_HANDSHAKE_CONTINUE:
+      (void)Net::Select(nullptr,nullptr,nullptr,
+                        &socks,nullptr,nullptr,nullptr);
+      break;
+    default:
+      server_socket.Close();
+      CLOSE_AUTOPASSFILE();
+      display.Statusf("");
+      return false;
+    }
+  } while(res != TTTP_HANDSHAKE_ADVANCE);
+  if(!no_crypt && !(tttp_client_get_flags(tttp) & TTTP_FLAG_ENCRYPTION)) {
+    if(!Widgets::ModalConfirm(display,
+                              "The server does not support encryption. This connection is NOT secure.\n\nAre you sure you want to continue?")) {
+      server_socket.Close();
+      CLOSE_AUTOPASSFILE();
+      display.Statusf("");
+      return false;
+    }
+  }
+  if(!no_auth) {
+    tttp_client_begin_handshake(tttp, username.c_str(), public_key);
+    do {
+      res = tttp_client_pump_auth(tttp);
+      switch(res) {
+      case TTTP_HANDSHAKE_ADVANCE: break;
+      case TTTP_HANDSHAKE_REJECTED:
+        server_socket.Close();
+        if(username == "")
+          Widgets::ModalInfo(display,
+                             "This server does not support guest connections.");
+        else
+          Widgets::ModalInfo(display,
+                             "This server does not support username-based authentication.");
+        display.Statusf("");
+        return false;
+      case TTTP_HANDSHAKE_CONTINUE:
+        (void)Net::Select(nullptr,nullptr,nullptr,
+                          &socks,nullptr,nullptr,nullptr);
+        break;
+      default:
+        server_socket.Close();
+        CLOSE_AUTOPASSFILE();
+        display.Statusf("");
+        return false;
+      }
+    } while(res != TTTP_HANDSHAKE_ADVANCE);
+    if(autopassfile) {
+#ifdef __WIN32__
+#else
+      password_pointer = reinterpret_cast<const uint8_t*>
+        (mmap(nullptr, passfile_len, PROT_READ, MAP_SHARED, passfd, 0));
+      if(password_pointer == MAP_FAILED || password_pointer == nullptr) {
+        password_pointer = nullptr;
+        Widgets::ModalInfo(display, std::string("Unable to map the password file.\n\n")+autopassfile+": "+strerror(errno), MAC16_BLACK|(MAC16_RED<<4));
+      }
+      password_len = passfile_len;
+#endif
+      if(password_pointer == nullptr) {
+        server_socket.Close();
+        CLOSE_AUTOPASSFILE();
+        display.Statusf("");
+        return false;
+      }
+    }
+    tttp_client_provide_password(tttp, password_pointer, password_len);
+    if(autopassfile) {
+      UNMAP_AUTOPASSFILE();
+    }
+    CLOSE_AUTOPASSFILE();
+  }
+  else tttp_client_begin_handshake(tttp, nullptr, public_key);
+  do {
+    res = tttp_client_pump_verify(tttp);
+    switch(res) {
+    case TTTP_HANDSHAKE_ADVANCE: break;
+    case TTTP_HANDSHAKE_REJECTED:
+      display.Statusf("");
+      server_socket.Close();
+      if(no_auth)
+        Widgets::ModalInfo(display,
+                           "The server did not allow our connection. This"
+                           " server may require authentication.");
+      else if(!server_sent_key)
+        Widgets::ModalInfo(display,
+                           "Unable to authenticate with the server. Your"
+                           " username or password may have been incorrect, or"
+                           " the key currently on file for the server may be"
+                           " wrong.\n\nThe option to manage the public key for"
+                           " a server becomes visible on the main connection"
+                           " menu when Control is held.");
+      else
+        Widgets::ModalInfo(display,
+                           "Unable to authenticate with the server. Your"
+                           " username or password may have been incorrect.");
+      return false;
+    case TTTP_HANDSHAKE_CONTINUE:
+      (void)Net::Select(nullptr,nullptr,nullptr,
+                        &socks,nullptr,nullptr,nullptr);
+      break;
+    default:
+      server_socket.Close();
+      display.Statusf("");
+      return false;
+    }
+  } while(res != TTTP_HANDSHAKE_ADVANCE);
+  // Connection succeeded!
+  display.Statusf("");
+  return true;
+}

@@ -1,0 +1,135 @@
+#include "widgets.hh"
+
+using namespace Widgets;
+
+Container::InputDelegate::InputDelegate(Container& container)
+  : container(container) {}
+void Container::InputDelegate::Key(int pressed, tttp_scancode scancode) {
+  if(scancode == KEY_LEFT_SHIFT) container.left_shift_held = !!pressed;
+  if(scancode == KEY_RIGHT_SHIFT) container.right_shift_held = !!pressed;
+  if(scancode == KEY_LEFT_CONTROL || scancode == KEY_RIGHT_CONTROL) {
+    bool old_held = container.IsControlHeld();
+    if(scancode == KEY_LEFT_CONTROL) container.left_control_held = !!pressed;
+    if(scancode == KEY_RIGHT_CONTROL) container.right_control_held = !!pressed;
+    bool new_held = container.IsControlHeld();
+    if(new_held != old_held && container.control_key_state_handler)
+      container.control_key_state_handler(new_held);
+  }
+  if(!pressed) return;
+  auto p = container.focus_widget.lock();
+  if(p) p->HandleKey(scancode);
+  else container.UnhandledKey(scancode);
+}
+void Container::InputDelegate::Text(uint8_t* text, size_t textlen) {
+  auto p = container.focus_widget.lock();
+  if(p) p->HandleText(text, textlen);
+}
+void Container::InputDelegate::MouseMove(int16_t x, int16_t y) {
+  container.mousex = x; container.mousey = y;
+}
+void Container::InputDelegate::MouseButton(int pressed, uint16_t button) {
+  if(!pressed) return;
+  for(auto& widget : container.widgets) {
+    if(widget->IsEnabled() && container.mousex >= widget->x
+       && container.mousey >= widget->y
+       && container.mousex < widget->x+widget->w
+       && container.mousey < widget->y+widget->h)
+      widget->HandleClick(button);
+  }
+}
+void Container::InputDelegate::Scroll(int8_t, int8_t) {}
+
+Container::Container(Display& display, uint16_t width, uint16_t height)
+  : left_shift_held(false), right_shift_held(false),
+    left_control_held(false), right_control_held(false),
+    display(display), width(width), height(height), mousex(-1), mousey(-1),
+    dirty_left(0), dirty_top(0), dirty_right(width-1), dirty_bot(height-1),
+    framebuffer(NULL), glyphbuffer(NULL), delegate(*this) {
+  if(width*2*height/height/2 != width) throw std::string("Integer overflow");
+  framebuffer = (uint8_t*)safe_calloc(width*2, height);
+  glyphbuffer = framebuffer + width*height;
+}
+Container::~Container() {
+  safe_free(framebuffer);
+}
+
+void Container::AddWidget(std::shared_ptr<Widget> widget) {
+  if(!widget) return;
+  widget->myself = widget;
+  widgets.push_back(widget);
+}
+
+void Container::SetFocusedWidget(std::shared_ptr<Widget> widget) {
+  auto focused = focus_widget.lock();
+  if(!focused || focused != widget) {
+    if(focused) focused->OnLoseFocus();
+    focus_widget = widget;
+    if(widget) widget->OnGainFocus();
+  }
+}
+
+void Container::FocusFirstEnabledWidget() {
+  for(auto& widget : widgets) {
+    if(widget->IsEnabled()) { SetFocusedWidget(widget); break; }
+  }
+}
+
+void Container::SetKeyHandler(std::function<bool(tttp_scancode)> handler) {
+  this->key_handler = handler;
+}
+
+void Container::SetControlKeyStateHandler(std::function<void(bool)> handler) {
+  this->control_key_state_handler = handler;
+}
+
+void Container::UnhandledKey(tttp_scancode code) {
+  if(key_handler) if(key_handler(code)) return;
+  switch(code) {
+  case KEY_TAB: case KEY_LEFT: case KEY_RIGHT: case KEY_UP: case KEY_DOWN:
+    if(!focus_widget.lock()) FocusFirstEnabledWidget();
+    break;
+  default: break;
+  }
+}
+
+void Container::DrawAll() {
+  memset(framebuffer, BACKGROUND_COLOR, width*height);
+  memset(glyphbuffer, ' ', width*height);
+  for(auto& w : widgets) w->Draw();
+  dirty_left = 0; dirty_top = 0;
+  dirty_right = width-1; dirty_bot = height-1;
+}
+
+void Container::Update() {
+  if(dirty_left > dirty_right || dirty_top > dirty_bot) return;
+  display.Update(width, height, dirty_left, dirty_top,
+                 dirty_right-dirty_left+1, dirty_bot-dirty_top+1,
+                 framebuffer);
+  dirty_left = width; dirty_top = height;
+  dirty_right = 0; dirty_bot = 0;
+}
+
+void Container::RunModal(std::function<bool()> completion_condition,
+                         bool already_called_draw_all) {
+  display.SetInputDelegate(&delegate);
+  while(!completion_condition()) {
+    if(!already_called_draw_all) {
+      DrawAll();
+      already_called_draw_all = true;
+    }
+    Update();
+    display.Pump(true);
+  }
+  display.SetInputDelegate(nullptr);
+}
+
+void Container::UnNest() {
+  display.SetInputDelegate(&delegate);
+  DrawAll();
+  right_shift_held = left_shift_held = false;
+  if(left_control_held || right_control_held) {
+    right_control_held = left_control_held = false;
+    if(control_key_state_handler)
+      control_key_state_handler(false);
+  }
+}

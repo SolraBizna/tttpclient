@@ -1,0 +1,35 @@
+# Emacs-style backup
+*~
+# DOS-style backup
+*.bak
+
+# Compiled object file
+*.o
+# UNIX-style static library
+*.a
+# UNIX-style shared library
+*.so
+# Darwin-style shared library
+*.dylib
+# OS/2-style shared library
+*.dll
+# OS/2-style executable
+*.exe
+# Dependency file
+*.d
+# Precompiled header (GCC)
+*.gch
+
+# All built executables
+bin/**
+# All generated headers
+include/gen/**
+# Only relevant to a specific machine
+make/cur_target.mk
+# Mac build provided files
+macbundle
+
+# TODO: git submodule this
+src/teg/**
+
+oversub_client_debug.sh
