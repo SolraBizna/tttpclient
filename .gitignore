@@ -29,7 +29,4 @@ make/cur_target.mk
 # Mac build provided files
 macbundle
 
-# TODO: git submodule this
-src/teg/**
-
 oversub_client_debug.sh
