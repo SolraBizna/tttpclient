@@ -8,7 +8,7 @@ LD=g++
 AR=gcc-ar
 
 # Flags passed to all calls that involve a C preprocessor.
-CPPFLAGS=-MP -MMD -Iinclude/ -Isrc/teg/ -I../lsx/include -I../libtttp
+CPPFLAGS=-MP -MMD -Iinclude/ -Isrc/teg/ -Ilsx/include -Ilibtttp
 CPPFLAGS_DEBUG=-DDEBUG=1 -Ipch/debug/
 CPPFLAGS_RELEASE=-DRELEASE=1 -DNDEBUG=1 -Ipch/release/
 # Flags passed to the C compiler.

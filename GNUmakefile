@@ -66,26 +66,33 @@ obj/%.debug.o: src/%.c
 	@echo Compiling "$<" "(debug)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_DEBUG) $(CFLAGS) $(CFLAGS_DEBUG) -o "$@" "$<"
 
-obj/%.o: ../lsx/src/%.c
+obj/%.o: lsx/src/%.c
 	@echo Compiling "$<" "(release)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_RELEASE) $(CFLAGS) $(CFLAGS_RELEASE) -std=c99 -o "$@" "$<"
-obj/%.debug.o: ../lsx/src/%.c
+obj/%.debug.o: lsx/src/%.c
 	@echo Compiling "$<" "(debug)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_DEBUG) $(CFLAGS) $(CFLAGS_DEBUG) -std=c99 -o "$@" "$<"
 
-obj/lsx_bzero.o: ../lsx/src/lsx_bzero.c
+obj/lsx_bzero.o: lsx/src/lsx_bzero.c
 	@echo Compiling "$<" "(release)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_RELEASE) $(CFLAGS) $(CFLAGS_RELEASE) -O0 -fno-builtin -std=c99 -o "$@" "$<"
-obj/lsx_bzero.debug.o: ../lsx/src/lsx_bzero.c
+obj/lsx_bzero.debug.o: lsx/src/lsx_bzero.c
 	@echo Compiling "$<" "(debug)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_DEBUG) $(CFLAGS) $(CFLAGS_DEBUG) -O0 -fno-builtin -std=c99 -o "$@" "$<"
 
-obj/%.o: ../libtttp/%.c
+obj/%.o: libtttp/%.c
 	@echo Compiling "$<" "(release)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_RELEASE) $(CFLAGS) $(CFLAGS_RELEASE) -std=c99 -o "$@" "$<"
-obj/%.debug.o: ../libtttp/%.c
+obj/%.debug.o: libtttp/%.c
 	@echo Compiling "$<" "(debug)"...
 	@$(CC) $(CPPFLAGS) $(CPPFLAGS_DEBUG) $(CFLAGS) $(CFLAGS_DEBUG) -std=c99 -o "$@" "$<"
+
+obj/%.o: src/%.cc
+	@echo Compiling "$<" "(release)"...
+	@$(CXX) $(CPPFLAGS) $(CPPFLAGS_RELEASE) $(CFLAGS) $(CFLAGS_RELEASE) $(CXXFLAGS) $(CXXFLAGS_RELEASE) -o "$@" "$<"
+obj/%.debug.o: src/%.cc
+	@echo Compiling "$<" "(debug)"...
+	@$(CXX) $(CPPFLAGS) $(CPPFLAGS_DEBUG) $(CFLAGS) $(CFLAGS_DEBUG) $(CXXFLAGS) $(CXXFLAGS_DEBUG) -o "$@" "$<"
 
 obj/%.o: src/%.cc
 	@echo Compiling "$<" "(release)"...
