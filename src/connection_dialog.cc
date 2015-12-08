@@ -11,6 +11,13 @@
 
 static std::forward_list<Net::Address> connection_targets;
 
+static std::string port_to_string(uint16_t port) {
+  // std::to_string is missing on MinGW, and it makes me sad
+  char buf[6];
+  snprintf(buf, 6, "%hu", port);
+  return buf;
+}
+
 static bool extract_port(std::string& error_out,
                          const std::string& src,
                          std::string& out_host, uint16_t& out_port) {
@@ -69,9 +76,9 @@ static std::string get_canon_name(const std::string& host,
   if(port == TTTP_STANDARD_PORT)
     return host;
   else if(std::count(host.cbegin(), host.cend(), ':') > 0)
-    return "[" + host + "]:" + std::to_string(port);
+    return "[" + host + "]:" + port_to_string(port);
   else
-    return host + ":" + std::to_string(port);
+    return host + ":" + port_to_string(port);
 }
 
 static bool get_canon_name(std::string& error_out,

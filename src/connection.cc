@@ -11,6 +11,7 @@
 #include "pkdb.hh"
 
 #ifdef __WIN32__
+// nothing?
 #else
 #include <sys/mman.h>
 #include <unistd.h>
@@ -133,7 +134,12 @@ bool AttemptConnection(Display& display,
   bool server_sent_key = false;
   server_socket.Close();
 #ifdef __WIN32__
-#error "https://msdn.microsoft.com/en-us/library/windows/desktop/aa366761%28v=vs.85%29.aspx"
+  HANDLE passhandle = nullptr;
+  size_t passfile_len = 0;
+#define CLOSE_AUTOPASSFILE() \
+  if(passhandle != nullptr) CloseHandle(passhandle)
+#define UNMAP_AUTOPASSFILE() \
+  UnmapViewOfFile(const_cast<uint8_t*>(password_pointer));
 #else
   int passfd = -1;
   size_t passfile_len = 0;
@@ -145,6 +151,30 @@ bool AttemptConnection(Display& display,
   if(autopassfile) {
     assert(!no_auth);
 #ifdef __WIN32__
+    int tname_length = MultiByteToWideChar(CP_UTF8, 0, autopassfile, -1,
+                                           NULL, 0);
+    TCHAR* tname = reinterpret_cast<TCHAR*>(safe_malloc(tname_length
+                                                        * sizeof(TCHAR)));
+    MultiByteToWideChar(CP_UTF8, 0, autopassfile, -1, tname, tname_length);
+    FILE* q = _wfopen(tname, L"rb");
+    if(!q) {
+      Widgets::ModalInfo(display, std::string("Unable to open the password file.\n\n")+autopassfile+": "+strerror(errno), MAC16_BLACK|(MAC16_RED<<4));
+      throw quit_exception();
+    }
+    if(fseek(q, 0, SEEK_END)) {
+      Widgets::ModalInfo(display, std::string("Unable to seek in the password file.\n\n")+autopassfile+": "+strerror(errno), MAC16_BLACK|(MAC16_RED<<4));
+      fclose(q);
+      throw quit_exception();
+    }
+    passfile_len = ftell(q);
+    fclose(q);
+    passhandle = OpenFileMapping(FILE_MAP_READ, FALSE, tname);
+    safe_free(tname);
+    if(passhandle == nullptr) {
+      Widgets::ModalInfo(display, "Unable to open the password file for memory mapping.", MAC16_BLACK|(MAC16_RED<<4));
+      std::cerr << "Unable to open the password file for mapping: Error code " << GetLastError() << std::endl;
+      throw quit_exception();
+    }
 #else
     passfd = open(autopassfile, O_RDONLY|O_NOCTTY);
     if(passfd < 0) {
@@ -158,8 +188,8 @@ bool AttemptConnection(Display& display,
       throw quit_exception();
     }
     passfile_len = sought;
-  }
 #endif
+  }
   server_socket = std::move(Net::SockStream()); // make sure it's clean
   bool success = false;
   int idx = 0;
@@ -315,6 +345,13 @@ bool AttemptConnection(Display& display,
     } while(res != TTTP_HANDSHAKE_ADVANCE);
     if(autopassfile) {
 #ifdef __WIN32__
+      password_pointer = reinterpret_cast<const uint8_t*>
+        (MapViewOfFile(passhandle, FILE_MAP_READ, 0, 0, passfile_len));
+      if(password_pointer == nullptr) {
+        Widgets::ModalInfo(display, "Unable to map the password file.", MAC16_BLACK|(MAC16_RED<<4));
+        std::cerr << "Unable to map the password file: Error code " << GetLastError() << std::endl;
+        }
+      password_len = passfile_len;
 #else
       password_pointer = reinterpret_cast<const uint8_t*>
         (mmap(nullptr, passfile_len, PROT_READ, MAP_SHARED, passfd, 0));

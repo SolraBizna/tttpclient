@@ -17,7 +17,7 @@ std::vector<std::string> break_lines(const std::string& message,
       wordbreak = here;
     }
     else {
-      auto line_size_with_this_char = here - start + 1;
+      unsigned int line_size_with_this_char = here - start + 1;
       if(line_size_with_this_char > line_width) {
         if(start == wordbreak) {
           lines.emplace_back(start, here);

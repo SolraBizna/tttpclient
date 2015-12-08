@@ -8,6 +8,7 @@
 #include "mac16.hh"
 #include "widgets.hh"
 #include "pkdb.hh"
+#include "io.hh"
 
 #include <iostream>
 #include <lsx.h>
@@ -251,6 +252,9 @@ static int parse_command_line(int argc, char* argv[]) {
 }
 
 int teg_main(int argc, char* argv[]) {
+#if __WIN32__
+  IO::DoRedirectOutput();
+#endif
   if(parse_command_line(argc, argv)) return 1;
   if(no_auth) no_crypt = true;
   tttp_init();
@@ -296,7 +300,19 @@ int teg_main(int argc, char* argv[]) {
   }
   catch(quit_exception e) {
     (void)e;
-    std::cout << "Window was closed." << std::endl;
+  }
+  catch(std::exception& e) {
+    std::cerr << "There was an unhandled exception." << std::endl << std::endl;
+    std::cerr << e.what() << std::endl;
+    try {
+      if(display)
+        do_modal_error(*display,
+                       std::string("There was an unhandled exception.\n\n")+e.what());
+    }
+    catch(std::string s2) {
+      std::cerr << std::endl << "And an unhandled error while handling the"
+        " exception." << std::endl << std::endl << s2 << std::endl;
+    }
   }
   if(display != nullptr) delete display;
   return 0;

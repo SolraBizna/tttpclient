@@ -24,15 +24,6 @@ make/cur_target.mk:
 	@echo Please point cur_target.mk to an appropriate target definition.
 	@false
 
-define define_exe =
-$(eval
-bin/$1-release$(EXE): obj/$1.o $2
-bin/$1-debug$(EXE): $(patsubst %.o,%.debug.o,obj/$1.o $2)
-)
-endef
-
-$(call define_exe,tttpclient,obj/lsx_bzero.o obj/lsx_random.o obj/lsx_twofish.o obj/lsx_sha256.o obj/tttp_common.o obj/tttp_client.o obj/display.o obj/sdlsoft_display.o obj/font.o obj/blend_table.o obj/charconv.o obj/modal_error.o obj/mac16.o obj/break_lines.o obj/widget.o obj/container.o obj/loose_text.o obj/labeled_field.o obj/secure_labeled_field.o obj/button.o obj/modal_confirm.o obj/modal_info.o obj/connection_dialog.o obj/connection.o obj/pkdb.o obj/key_manage_dialog.o)
-
 bin/%-release$(EXE): lib/libteg.a obj/%.o
 	@echo Linking "$@" "(release)"...
 	@$(LD) $(LDFLAGS) $(LDFLAGS_RELEASE) -o "$@" $(filter-out lib/libteg.a,$^) lib/libteg.a $(LIBS)
@@ -104,6 +95,7 @@ obj/%.debug.o: src/%.cc
 clean:
 	rm -rf bin obj lib include/gen
 
+include src/exes.mk
 include src/teg/teg.mk
 include $(wildcard obj/*.d)
 include $(wildcard obj/teg/*.d)
