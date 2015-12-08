@@ -150,7 +150,10 @@ bool DoConnectionDialog(Display& display) {
       }
     }
     container.DrawAll();
+    DiscardingInputDelegate del;
+    display.SetInputDelegate(&del);
     container.Update();
+    display.SetInputDelegate(nullptr);
     if(!resolve(display, err, autohost, canon_name)) {
       Widgets::ModalInfo(display, std::string("The address entered on the"
                                               " command line could not be"

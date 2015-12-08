@@ -241,7 +241,7 @@ bool AttemptConnection(Display& display,
     if(res == TTTP_HANDSHAKE_REJECTED) {
       if(!PKDB::GetPublicKey(canon_name, public_key)) {
         display.Statusf("");
-        Widgets::ModalInfo(display, "The server has a hidden public key. You must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when Control is held.");
+        Widgets::ModalInfo(display, "The server has a hidden public key. You must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when " PMOD " is held.");
         server_socket.Close();
         CLOSE_AUTOPASSFILE();
         return false;
@@ -393,7 +393,7 @@ bool AttemptConnection(Display& display,
                            " the key currently on file for the server may be"
                            " wrong.\n\nThe option to manage the public key for"
                            " a server becomes visible on the main connection"
-                           " menu when Control is held.");
+                           " menu when " PMOD " is held.");
       else
         Widgets::ModalInfo(display,
                            "Unable to authenticate with the server. Your"

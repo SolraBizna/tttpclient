@@ -79,6 +79,9 @@ class Container {
   std::weak_ptr<Widget> focus_widget;
   bool left_shift_held, right_shift_held;
   bool left_control_held, right_control_held;
+  // we consider this equivalent to Control, to smooth things over with Mac
+  // users
+  bool left_gui_held, right_gui_held;
   Display& display;
   int width, height, mousex, mousey,
     dirty_left, dirty_top, dirty_right, dirty_bot;
@@ -125,7 +128,8 @@ public:
   void UnNest();
   inline bool IsShiftHeld() const { return left_shift_held||right_shift_held; }
   inline bool IsControlHeld() const {
-    return left_control_held||right_control_held;
+    return left_control_held||right_control_held
+      ||left_gui_held||right_gui_held;
   }
   inline uint8_t* GetColorPointer(int x = 0, int y = 0) {
     return framebuffer + width*y + x;
@@ -133,6 +137,7 @@ public:
   inline uint8_t* GetGlyphPointer(int x = 0, int y = 0) {
     return glyphbuffer + width*y + x;
   }
+  inline Display& GetDisplay() const { return display; }
 };
 
 class LooseText : public Widget {
@@ -167,6 +172,7 @@ public:
   bool IsEnabled() const override;
   void HandleText(const uint8_t* text, size_t textlen) override;
   void HandleKey(tttp_scancode scancode) override;
+  void HandleClick(uint16_t button) override;
 };
 
 class SecureLabeledField : public Widget {
@@ -196,6 +202,7 @@ public:
   bool IsEnabled() const override;
   void HandleText(const uint8_t* text, size_t textlen) override;
   void HandleKey(tttp_scancode scancode) override;
+  void HandleClick(uint16_t button) override;
 };
 
 class Button : public Widget {

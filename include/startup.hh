@@ -7,6 +7,14 @@
 
 #include <forward_list>
 
+/* We use control and meta interchangeably. This macro specifies which one we
+   should emphasize on the current platform. */
+#if MACOSX
+#define PMOD "command"
+#else
+#define PMOD "control"
+#endif
+
 class Display;
 
 extern char* autohost, *autouser, *autopassword, *autopassfile;

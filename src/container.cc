@@ -1,5 +1,7 @@
 #include "widgets.hh"
 
+#include "tttp_common.h"
+
 using namespace Widgets;
 
 Container::InputDelegate::InputDelegate(Container& container)
@@ -7,10 +9,13 @@ Container::InputDelegate::InputDelegate(Container& container)
 void Container::InputDelegate::Key(int pressed, tttp_scancode scancode) {
   if(scancode == KEY_LEFT_SHIFT) container.left_shift_held = !!pressed;
   if(scancode == KEY_RIGHT_SHIFT) container.right_shift_held = !!pressed;
-  if(scancode == KEY_LEFT_CONTROL || scancode == KEY_RIGHT_CONTROL) {
+  if(scancode == KEY_LEFT_CONTROL || scancode == KEY_RIGHT_CONTROL
+     || scancode == KEY_LEFT_GUI || scancode == KEY_RIGHT_GUI) {
     bool old_held = container.IsControlHeld();
     if(scancode == KEY_LEFT_CONTROL) container.left_control_held = !!pressed;
     if(scancode == KEY_RIGHT_CONTROL) container.right_control_held = !!pressed;
+    if(scancode == KEY_LEFT_GUI) container.left_gui_held = !!pressed;
+    if(scancode == KEY_RIGHT_GUI) container.right_gui_held = !!pressed;
     bool new_held = container.IsControlHeld();
     if(new_held != old_held && container.control_key_state_handler)
       container.control_key_state_handler(new_held);
@@ -29,12 +34,20 @@ void Container::InputDelegate::MouseMove(int16_t x, int16_t y) {
 }
 void Container::InputDelegate::MouseButton(int pressed, uint16_t button) {
   if(!pressed) return;
-  for(auto& widget : container.widgets) {
-    if(widget->IsEnabled() && container.mousex >= widget->x
-       && container.mousey >= widget->y
-       && container.mousex < widget->x+widget->w
-       && container.mousey < widget->y+widget->h)
-      widget->HandleClick(button);
+  if(button == TTTP_MIDDLE_MOUSE_BUTTON) {
+    /* make middle-click-to-paste behave consistently with an emulated
+       terminal */
+    auto p = container.focus_widget.lock();
+    if(p) p->HandleClick(button);
+  }
+  else {
+    for(auto& widget : container.widgets) {
+      if(widget->IsEnabled() && container.mousex >= widget->x
+         && container.mousey >= widget->y
+         && container.mousex < widget->x+widget->w
+         && container.mousey < widget->y+widget->h)
+        widget->HandleClick(button);
+    }
   }
 }
 void Container::InputDelegate::Scroll(int8_t, int8_t) {}
