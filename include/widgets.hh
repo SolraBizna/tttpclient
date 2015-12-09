@@ -173,6 +173,7 @@ public:
   void HandleText(const uint8_t* text, size_t textlen) override;
   void HandleKey(tttp_scancode scancode) override;
   void HandleClick(uint16_t button) override;
+  void HandlePaste();
 };
 
 class SecureLabeledField : public Widget {
@@ -192,6 +193,7 @@ class SecureLabeledField : public Widget {
   size_t cursor_pos;
   unsigned int label_w, text_x, text_w;
   bool enabled;
+  void HandlePaste();
 public:
   SecureLabeledField(Container& container, int x, int y, int w, int label_w,
                      const std::string& label, const char* contents=nullptr);

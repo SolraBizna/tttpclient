@@ -107,30 +107,35 @@ void SecureLabeledField::HandleText(const uint8_t* text, size_t textlen) {
   Draw();
 }
 
+void SecureLabeledField::HandlePaste() {
+  char* cbt = container.GetDisplay().GetClipboardText();
+  if(!cbt) return;
+  auto cbtlen = strlen(cbt);
+  // overwrite the buffer as we go, it's okay, CP437 is shorter than UTF-8
+  uint8_t* cop = convert_utf8_to_cp437(reinterpret_cast<uint8_t*>(cbt),
+                                       reinterpret_cast<uint8_t*>(cbt),
+                                       cbtlen,
+                                       [this](uint8_t* sofar,
+                                              size_t sofarlen,
+                                              tttp_scancode code){
+                                         HandleText(sofar, sofarlen);
+                                         if(code != KEY_ENTER
+                                            && code != KEY_TAB)
+                                           HandleKey(code);
+                                       });
+  auto outlen = cop - reinterpret_cast<uint8_t*>(cbt);
+  if(outlen > 0) HandleText(reinterpret_cast<uint8_t*>(cbt), outlen);
+  lsx_explicit_bzero(cbt, cbtlen);
+  container.GetDisplay().FreeClipboardText(cbt);
+}
+
 void SecureLabeledField::HandleKey(tttp_scancode scancode) {
   switch(scancode) {
+  case KEY_INSERT:
+    if(container.IsShiftHeld()) HandlePaste();
+    break;
   case KEY_V:
-    if(container.IsControlHeld()) {
-      char* cbt = container.GetDisplay().GetClipboardText();
-      if(!cbt) break;
-      auto cbtlen = strlen(cbt);
-      // overwrite the buffer as we go, it's okay, CP437 is shorter than UTF-8
-      uint8_t* cop = convert_utf8_to_cp437(reinterpret_cast<uint8_t*>(cbt),
-                                           reinterpret_cast<uint8_t*>(cbt),
-                                           cbtlen,
-                                           [this](uint8_t* sofar,
-                                                   size_t sofarlen,
-                                                   tttp_scancode code){
-                                             HandleText(sofar, sofarlen);
-                                             if(code != KEY_ENTER
-                                                && code != KEY_TAB)
-                                               HandleKey(code);
-                                           });
-      auto outlen = cop - reinterpret_cast<uint8_t*>(cbt);
-      if(outlen > 0) HandleText(reinterpret_cast<uint8_t*>(cbt), outlen);
-      lsx_explicit_bzero(cbt, cbtlen);
-      container.GetDisplay().FreeClipboardText(cbt);
-    }
+    if(container.IsControlHeld()) HandlePaste();
     break;
   case KEY_DELETE:
     if(cursor_pos < content.length()) { content.erase(cursor_pos, 1); Draw(); }

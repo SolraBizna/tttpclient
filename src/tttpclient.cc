@@ -1,4 +1,5 @@
 #include "tttpclient.hh"
+#include "tttp_scancodes.h"
 #include "tttp_client.h"
 #include "font.hh"
 #include "display.hh"
@@ -9,6 +10,7 @@
 #include "widgets.hh"
 #include "pkdb.hh"
 #include "io.hh"
+#include "charconv.hh"
 
 #include <iostream>
 #include <lsx.h>
@@ -22,9 +24,92 @@ bool no_auth = false, no_crypt = false;
 Net::SockStream server_socket;
 tttp_client* tttp = nullptr;
 
+static Display* display = nullptr;
+static bool pasting_enabled = false;
+
 class LibTTTPInputDelegate : public InputDelegate {
+  bool left_shift_held, right_shift_held;
+  bool left_control_held, right_control_held;
+  bool left_gui_held, right_gui_held;
+  bool left_alt_held, right_alt_held;
+  bool ShiftHeld() const { return left_shift_held || right_shift_held; }
+  bool ControlHeld() const { return left_control_held || right_control_held; }
+  bool GuiHeld() const { return left_gui_held || right_gui_held; }
+  bool AltHeld() const { return left_alt_held || right_alt_held; }
+  bool CheckMods(bool shift, bool control, bool gui, bool alt) {
+    return ShiftHeld() == shift && ControlHeld() == control
+      && GuiHeld() == gui && AltHeld() == alt;
+  }
 public:
+  LibTTTPInputDelegate()
+    : left_shift_held(false), right_shift_held(false),
+      left_control_held(false), right_control_held(false),
+      left_gui_held(false), right_gui_held(false),
+      left_alt_held(false), right_alt_held(false) {}
   void Key(int pressed, tttp_scancode scancode) override {
+    if(scancode == KEY_LEFT_SHIFT) left_shift_held = pressed;
+    else if(scancode == KEY_RIGHT_SHIFT) right_shift_held = pressed;
+    else if(scancode == KEY_LEFT_CONTROL) left_control_held = pressed;
+    else if(scancode == KEY_RIGHT_CONTROL) right_control_held = pressed;
+    else if(scancode == KEY_LEFT_GUI) left_gui_held = pressed;
+    else if(scancode == KEY_RIGHT_GUI) right_gui_held = pressed;
+    else if(scancode == KEY_LEFT_ALT) left_alt_held = pressed;
+    else if(scancode == KEY_RIGHT_ALT) right_alt_held = pressed;
+    else if(pressed) {
+      /* QUIT
+         All platforms: Control+Backslash
+         Mac: Command+Q, Command+W
+         Non-Mac: Alt+F4
+      */
+      if((scancode == KEY_BACKSLASH && CheckMods(false,true,false,false))
+#if MACOSX
+         || ((scancode == KEY_W || scancode == KEY_Q)
+             && CheckMods(false,false,true,false))
+#else
+         || (scancode == KEY_F4 && CheckMods(false,false,false,true))
+#endif
+         ) {
+        throw quit_exception();
+      }
+      /*
+        PASTE
+        All platforms: Shift+Insert
+        Mac: Command+V
+        Non-Mac: Control+V
+       */
+      else if(pasting_enabled
+         && ((scancode == KEY_INSERT && CheckMods(true,false,false,false))
+#if MACOSX
+             || (scancode == KEY_V && CheckMods(false,false,true,false))
+#else
+             || (scancode == KEY_V && CheckMods(false,true,false,false))
+#endif
+             )) {
+        char* cbt = display->GetClipboardText();
+        tttp_client_begin_paste(tttp);
+        if(cbt) {
+          auto cbtlen = strlen(cbt);
+          // overwrite the buffer as we go, it's okay
+          uint8_t* cop = convert_utf8_to_cp437(reinterpret_cast<uint8_t*>(cbt),
+                                               reinterpret_cast<uint8_t*>(cbt),
+                                               cbtlen,
+                                               [this](uint8_t* sofar,
+                                                      size_t sofarlen,
+                                                      tttp_scancode code){
+                                                 Text(sofar, sofarlen);
+                                                 if(code == KEY_ENTER
+                                                    || code == KEY_TAB) {
+                                                   Key(1, code); Key(0, code);
+                                                 }
+                                               });
+          auto outlen = cop - reinterpret_cast<uint8_t*>(cbt);
+          if(outlen > 0) Text(reinterpret_cast<uint8_t*>(cbt), outlen);
+          display->FreeClipboardText(cbt);
+        }
+        tttp_client_end_paste(tttp);
+        return;
+      }
+    }
     tttp_client_send_key(tttp, pressed ? TTTP_PRESS : TTTP_RELEASE, scancode);
   }
   void Text(uint8_t* text, size_t textlen) override {
@@ -34,6 +119,34 @@ public:
     tttp_client_send_mouse_movement(tttp, x, y);
   }
   void MouseButton(int pressed, uint16_t button) override {
+    if(pasting_enabled) {
+      /* there are six instances of slightly different code to do this in this
+         program, I should really have made this generic */
+      char* cbt = display->GetOtherClipboardText();
+      if(cbt && *cbt != 0) {
+        tttp_client_begin_paste(tttp);
+        auto cbtlen = strlen(cbt);
+        //overwrite the buffer as we go, it's okay, CP437 is shorter than UTF-8
+        uint8_t* cop = convert_utf8_to_cp437(reinterpret_cast<uint8_t*>(cbt),
+                                             reinterpret_cast<uint8_t*>(cbt),
+                                             cbtlen,
+                                             [this](uint8_t* sofar,
+                                                    size_t sofarlen,
+                                                    tttp_scancode code){
+                                               Text(sofar, sofarlen);
+                                               if(code == KEY_ENTER
+                                                  || code == KEY_TAB) {
+                                                 Key(1, code); Key(0, code);
+                                               }
+                                             });
+        auto outlen = cop - reinterpret_cast<uint8_t*>(cbt);
+        if(outlen > 0) Text(reinterpret_cast<uint8_t*>(cbt), outlen);
+        display->FreeOtherClipboardText(cbt);
+        tttp_client_end_paste(tttp);
+        return;
+      }
+      else if(cbt) display->FreeOtherClipboardText(cbt);
+    }
     tttp_client_send_mouse_button(tttp, pressed ? TTTP_PRESS : TTTP_RELEASE,
                                   button);
   }
@@ -69,6 +182,10 @@ static void kick_callback(void* d, const uint8_t* data, size_t len) {
 static void text_callback(void*, const uint8_t* data, size_t len) {
   std::cout << "TEXT: " << std::string(reinterpret_cast<const char*>(data),
                                        len);
+}
+
+static void pmode_callback(void*, int enabled) {
+  pasting_enabled = enabled;
 }
 
 extern void die(const char* format, ...) {
@@ -258,7 +375,6 @@ int teg_main(int argc, char* argv[]) {
   if(parse_command_line(argc, argv)) return 1;
   if(no_auth) no_crypt = true;
   tttp_init();
-  Display* display = nullptr;
   try {
     {
       Font font(font_path);
@@ -277,6 +393,7 @@ int teg_main(int argc, char* argv[]) {
       tttp_client_set_core_callbacks(tttp, pltt_callback, fram_callback,
                                      kick_callback);
       tttp_client_set_text_callback(tttp, text_callback);
+      tttp_client_set_paste_mode_callback(tttp, pmode_callback);
       display->SetInputDelegate(&del);
       while(tttp_client_pump(tttp))
         display->Pump();
