@@ -1,9 +1,9 @@
 [submodule "lsx"]
 	path = lsx
-	url = git@git.tejat.net:lsx
+	url = git@github.com:SolraBizna/lsx
 [submodule "libtttp"]
 	path = libtttp
-	url = git@git.tejat.net:libtttp
+	url = git@github.com:SolraBizna/libtttp
 [submodule "src/teg"]
 	path = src/teg
-	url = git@git.tejat.net:teg
+	url = git@github.com:SolraBizna/teg
