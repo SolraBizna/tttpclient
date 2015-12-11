@@ -55,7 +55,7 @@ class SDLSoft_Display : public Display {
 protected:
   void StatusChanged() override;
 public:
-  SDLSoft_Display(Font& font, const char* title);
+  SDLSoft_Display(Font& font, const char* title, bool accel);
   ~SDLSoft_Display() override;
   void SetKeyRepeat(uint32_t delay, uint32_t interval) override;
   void SetPalette(const uint8_t palette[48]) override;

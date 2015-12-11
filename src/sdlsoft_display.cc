@@ -61,7 +61,7 @@ void copy_out_glyph_data(uint32_t glyph_width, uint32_t glyph_height,
   }
 }
 
-SDLSoft_Display::SDLSoft_Display(Font& font, const char* title)
+SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel)
   : status_dirty(false), exposed(false),
     cur_width(0), cur_height(0), prev_status_len(0), frametexture(NULL) {
   if(SDL_Init(SDL_INIT_VIDEO)) throw std::string(SDL_GetError());
@@ -121,7 +121,9 @@ SDLSoft_Display::SDLSoft_Display(Font& font, const char* title)
     safe_free(glyphdata);
     throw std::string(SDL_GetError());
   }
-  renderer = SDL_CreateRenderer(window, -1, 0); // TODO: SDL_RENDERER_SOFTWARE
+  renderer = SDL_CreateRenderer(window, -1, accel
+                                ? SDL_RENDERER_ACCELERATED
+                                : SDL_RENDERER_SOFTWARE);
   if(renderer == NULL) {
     SDL_DestroyWindow(window);
     SDL_Quit();

@@ -41,6 +41,10 @@ bool no_auth = false, no_crypt = false;
 Net::SockStream server_socket;
 tttp_client* tttp = nullptr;
 
+static enum class DisplayMode {
+  DEFAULT, ACCELERATED
+} display_mode = DisplayMode::DEFAULT;
+
 static Display* display = nullptr;
 static bool pasting_enabled = false;
 
@@ -338,6 +342,16 @@ static int parse_command_line(int argc, char* argv[]) {
             --argc;
           }
           break;
+        case 'a':
+          if(display_mode != DisplayMode::DEFAULT) {
+            // TODO: when we implement other display modes, be disgruntled
+          }
+          if(display_mode == DisplayMode::ACCELERATED) {
+            std::cerr << "-a given more than once" << std::endl;
+            ret = 1;
+          }
+          else display_mode = DisplayMode::ACCELERATED;
+          break;
         case 'v':
           std::cout << "TTTPClient " TTTP_CLIENT_VERSION << std::endl;
           return 1;
@@ -365,6 +379,7 @@ static int parse_command_line(int argc, char* argv[]) {
     std::cerr << "tightly in 8 columns and 8 rows. The glyph size is autodetected." << std::endl;
     std::cerr << "Options:" << std::endl;
     std::cerr << "  -t <title>: Specify a custom window title." << std::endl;
+    std::cerr << "  -a: Try basic hardware acceleration. May cause problems with some drivers." << std::endl;
     std::cerr << "  -q <depth>: Queue depth to request. Range is 0-255, default is 0 (server's" << std::endl;
     std::cerr << "discretion)" << std::endl;
     //std::cerr << "  -f: Use fullscreen mode at startup (can always be toggled with alt-enter)" << std::endl;
@@ -396,7 +411,8 @@ int teg_main(int argc, char* argv[]) {
     {
       Font font(font_path);
       display = new SDLSoft_Display(font, window_title ? window_title
-                                    : "TTTPClient " TTTP_CLIENT_VERSION);
+                                    : "TTTPClient " TTTP_CLIENT_VERSION,
+                                    display_mode == DisplayMode::ACCELERATED);
     }
     display->SetPalette(mac16);
     std::string err;
