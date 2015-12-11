@@ -57,6 +57,7 @@ bool Button::IsEnabled() const {
 
 void Button::HandleKey(tttp_scancode scancode) {
   switch(scancode) {
+  case KEY_ENTER: // sigh
   case KEY_SPACE:
     clicked = true;
     Draw();
