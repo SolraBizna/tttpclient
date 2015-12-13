@@ -72,6 +72,7 @@ void Container::InputDelegate::Scroll(int8_t, int8_t) {}
 Container::Container(Display& display, uint16_t width, uint16_t height)
   : left_shift_held(false), right_shift_held(false),
     left_control_held(false), right_control_held(false),
+    left_gui_held(false), right_gui_held(false),
     display(display), width(width), height(height), mousex(-1), mousey(-1),
     dirty_left(0), dirty_top(0), dirty_right(width-1), dirty_bot(height-1),
     framebuffer(NULL), glyphbuffer(NULL), delegate(*this) {
