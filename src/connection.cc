@@ -324,9 +324,46 @@ bool AttemptConnection(Display& display,
       return false;
     }
   } while(res != TTTP_HANDSHAKE_ADVANCE);
+  uint32_t final_flags = tttp_client_get_flags(tttp);
+  if(final_flags & TTTP_FLAG_FUTURE_CRYPTO) {
+    server_socket.Close();
+    CLOSE_AUTOPASSFILE();
+    display.Statusf("");
+    Widgets::ModalInfo(display,
+                       "The server requires the \"future crypto\" extension"
+                       " to the TTTP protocol. This client does not support"
+                       " it.\n\nTry upgrading to a newer version of"
+                       " TTTPClient.",
+                       MAC16_BLACK|(MAC16_RED<<4));
+    return false;
+  }
+  else if(final_flags & TTTP_FLAG_UNICODE) {
+    server_socket.Close();
+    CLOSE_AUTOPASSFILE();
+    display.Statusf("");
+    Widgets::ModalInfo(display,
+                       "The server requires Unicode mode, but TTTPClient only"
+                       " supports the default, CP437 mode.",
+                       MAC16_BLACK|(MAC16_RED<<4));
+    return false;
+  }
+  else if(final_flags & ~TTTP_FLAG_ENCRYPTION) {
+    // TTTP_FLAG_ENCRYPTION is the only flag we _actually_ support
+    server_socket.Close();
+    CLOSE_AUTOPASSFILE();
+    display.Statusf("");
+    Widgets::ModalInfo(display,
+                       "The server requires a newer version of the TTTP"
+                       " protocol, which this client does not support."
+                       "\n\nTry upgrading to a newer version of TTTPClient.",
+                       MAC16_BLACK|(MAC16_RED<<4));
+    return false;
+  }
   if(!no_crypt && !(tttp_client_get_flags(tttp) & TTTP_FLAG_ENCRYPTION)) {
     if(!Widgets::ModalConfirm(display,
-                              "The server does not support encryption. This connection is NOT secure.\n\nAre you sure you want to continue?")) {
+                              "The server does not support encryption. This"
+                              " connection will NOT be secure.\n\nWould you"
+                              " like to continue without encryption?")) {
       server_socket.Close();
       CLOSE_AUTOPASSFILE();
       display.Statusf("");
