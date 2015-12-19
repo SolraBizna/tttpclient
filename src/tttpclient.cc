@@ -76,13 +76,17 @@ public:
     else if(scancode == KEY_RIGHT_GUI) right_gui_held = pressed;
     else if(scancode == KEY_LEFT_ALT) left_alt_held = pressed;
     else if(scancode == KEY_RIGHT_ALT) right_alt_held = pressed;
-    else if(pressed) {
+    // scroll lock is supposed to be a toggle, so a physical "press" could
+    // generate either a press or a release; allow both to quit
+    else if(pressed || scancode == KEY_SCROLL_LOCK) {
       /* QUIT
-         All platforms: Control+Backslash
+         All platforms: Control+Backslash, Control+Pause, Control+ScrollLock
          Mac: Command+Q, Command+W
          Non-Mac: Alt+F4
       */
       if((scancode == KEY_BACKSLASH && CheckMods(false,true,false,false))
+         || (scancode == KEY_PAUSE && CheckMods(false,true,false,false))
+         || (scancode == KEY_SCROLL_LOCK && CheckMods(false,true,false,false))
 #if MACOSX
          || ((scancode == KEY_W || scancode == KEY_Q)
              && CheckMods(false,false,true,false))
