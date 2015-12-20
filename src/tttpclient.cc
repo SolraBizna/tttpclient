@@ -144,6 +144,8 @@ public:
     tttp_client_send_mouse_movement(tttp, x, y);
   }
   void MouseButton(int pressed, uint16_t button) override {
+    tttp_client_send_mouse_button(tttp, pressed ? TTTP_PRESS : TTTP_RELEASE,
+                                  button);
     if(pasting_enabled) {
       /* there are six instances of slightly different code to do this in this
          program, I should really have made this generic */
@@ -166,14 +168,10 @@ public:
                                              });
         auto outlen = cop - reinterpret_cast<uint8_t*>(cbt);
         if(outlen > 0) Text(reinterpret_cast<uint8_t*>(cbt), outlen);
-        display->FreeOtherClipboardText(cbt);
         tttp_client_end_paste(tttp);
-        return;
       }
-      else if(cbt) display->FreeOtherClipboardText(cbt);
+      if(cbt) display->FreeOtherClipboardText(cbt);
     }
-    tttp_client_send_mouse_button(tttp, pressed ? TTTP_PRESS : TTTP_RELEASE,
-                                  button);
   }
   void Scroll(int8_t x, int8_t y) override {
     tttp_client_send_scroll(tttp, x, y);
