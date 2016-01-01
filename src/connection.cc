@@ -258,8 +258,8 @@ bool AttemptConnection(Display& display,
     if(res == TTTP_HANDSHAKE_REJECTED) {
       if(!PKDB::GetPublicKey(canon_name, public_key)) {
         display.Statusf("");
-        Widgets::ModalInfo(display, "The server has a hidden public key. You must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when " PMOD " is held.");
         server_socket.Close();
+        Widgets::ModalInfo(display, "The server has a hidden public key. You must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when " PMOD " is held.");
         CLOSE_AUTOPASSFILE();
         return false;
       }
@@ -269,8 +269,8 @@ bool AttemptConnection(Display& display,
       display.Statusf("");
       uint8_t filed_public_key[TTTP_PUBLIC_KEY_LENGTH];
       if(PKDB::GetPublicKey(canon_name, filed_public_key)) {
-        Widgets::ModalInfo(display, "The server is refusing to confirm its identity, but it was perfectly happy to do so in the past. SOMEONE IS PROBABLY TRYING TO IMPERSONATE THIS SERVER!\n\nContact the server operator.\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
         server_socket.Close();
+        Widgets::ModalInfo(display, "The server is refusing to confirm its identity, but it was perfectly happy to do so in the past. SOMEONE IS PROBABLY TRYING TO IMPERSONATE THIS SERVER!\n\nContact the server operator.\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
         CLOSE_AUTOPASSFILE();
         return false;
       }
