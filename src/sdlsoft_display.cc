@@ -455,8 +455,8 @@ void SDLSoft_Display::Pump(bool wait) {
       uint32_t new_status_width = GetStatusLine().length();
       if(new_status_width > 0) new_status_width += 2;
       if(dirty_left > new_status_width) dirty_left = new_status_width;
-      if(dirty_right < prev_status_len+1)
-        dirty_right = prev_status_len+1;
+      if(dirty_right < prev_status_len+2)
+        dirty_right = prev_status_len+2;
     }
     SDL_Rect region = {(int)(dirty_left * glyph_width),
                        (int)(dirty_top * glyph_height),
