@@ -459,8 +459,8 @@ void SDLSoft_Display::Pump(bool wait) {
       uint32_t new_status_width = GetStatusLine().length();
       if(new_status_width > 0) new_status_width += 2;
       if(dirty_left > new_status_width) dirty_left = new_status_width;
-      if(dirty_right < prev_status_len+2)
-        dirty_right = prev_status_len+2;
+      if(dirty_right < prev_status_len+1)
+        dirty_right = prev_status_len+1;
     }
     SDL_Rect region = {(int)(dirty_left * glyph_width),
                        (int)(dirty_top * glyph_height),
@@ -476,7 +476,7 @@ void SDLSoft_Display::Pump(bool wait) {
         if(new_status_width > 0) new_status_width += 2;
         SDL_Rect region = {(int)(new_status_width * glyph_width),
                            (int)((cur_height-1) * glyph_height),
-                           (int)((prev_status_len+1) * glyph_width),
+                           (int)((prev_status_len+2) * glyph_width),
                            (int)(glyph_height)};
         SDL_RenderCopy(renderer, frametexture, &region, &region);
         need_present = true;
