@@ -401,6 +401,10 @@ void SDLSoft_Display::Update(uint16_t width, uint16_t height,
     int pw, ph;
     SDL_GetWindowSize(window, &pw, &ph);
     if(pw != (int)(width * glyph_width) || ph != (int)(height * glyph_height)){
+      SDL_Event evt;
+      evt.type = SDL_WINDOWEVENT;
+      evt.window.event = SDL_WINDOWEVENT_EXPOSED;
+      SDL_PushEvent(&evt);
       SDL_SetWindowSize(window, width * glyph_width, height * glyph_height);
       do {
         this->dirty_left = cur_width; this->dirty_right = 0;
