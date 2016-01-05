@@ -451,9 +451,7 @@ int teg_main(int argc, char* argv[]) {
         " error." << std::endl << std::endl << s2 << std::endl;
     }
   }
-  catch(quit_exception e) {
-    (void)e;
-  }
+  catch(quit_exception) { /* quit silently */ }
   catch(std::exception& e) {
     std::cerr << "There was an unhandled exception." << std::endl << std::endl;
     std::cerr << e.what() << std::endl;
