@@ -44,11 +44,6 @@ class Display {
   std::string status;
 protected:
   uint32_t glyph_width, glyph_height;
-  inline InputDelegate& GetInputDelegate() {
-    if(!delegate)
-      throw std::string("GetInputDelegate called with no delegate set");
-    return *delegate;
-  }
   inline const std::string& GetStatusLine() { return status; }
   // if this is called, then the next time Update or Pump is called, the status
   // line must also be updated on screen
@@ -65,7 +60,9 @@ public:
                       uint16_t dirty_left, uint16_t dirty_right,
                       uint16_t dirty_width, uint16_t dirty_height,
                       const uint8_t* buffer) = 0;
-  virtual void Pump(bool wait=false)=0;// may be called automatically by Update
+  // may be called automatically by Update
+  // if timeout_ms is <= 0, wait forever
+  virtual void Pump(bool wait = false, int timeout_ms = 0) = 0;
   virtual void SetClipboardText(const char*) = 0;
   virtual char* GetClipboardText() = 0; // acts like SDL_GetClipboardText()
   virtual void FreeClipboardText(char*) = 0; // frees pointer returned from ^
@@ -75,6 +72,11 @@ public:
   virtual void FreeOtherClipboardText(char*);
   inline uint32_t GetCharWidth() const { return glyph_width; }
   inline uint32_t GetCharHeight() const { return glyph_height; }
+  inline InputDelegate& GetInputDelegate() {
+    if(!delegate)
+      throw std::string("GetInputDelegate called with no delegate set");
+    return *delegate;
+  }
 };
 
 #endif

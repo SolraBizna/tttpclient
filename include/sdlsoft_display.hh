@@ -31,6 +31,9 @@ class SDLSoft_Display : public Display {
   SDL_Renderer* renderer;
   SDL_Texture* frametexture;
   SDL_Texture* statustexture;
+  SDL_Texture* overlaytexture;
+  int overlay_x, overlay_y, overlay_w, overlay_h;
+  int overlay_source_w, overlay_source_h;
   uint8_t palette[48];
   void DrawGlyph(uint8_t color, uint8_t glyph,
                  uint8_t* outbase, uint32_t pitch,
@@ -62,12 +65,15 @@ public:
               uint16_t dirty_left, uint16_t dirty_top,
               uint16_t dirty_width, uint16_t dirty_height,
               const uint8_t* buffer) override;
-  void Pump(bool wait = false) override;
+  void Pump(bool wait = false, int timeout_ms = 0) override;
   void SetClipboardText(const char*) override;
   char* GetClipboardText() override;
   void FreeClipboardText(char*) override;
   char* GetOtherClipboardText() override;
   void FreeOtherClipboardText(char*) override;
+  void SetOverlayTexture(SDL_Texture* tex, int w, int h);
+  void SetOverlayRegion(int x, int y, int w, int h);
+  inline SDL_Renderer* GetRenderer() const { return renderer; }
 };
 
 #endif

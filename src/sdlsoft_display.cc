@@ -18,11 +18,12 @@
 #include "sdlsoft_display.hh"
 #include "charconv.hh"
 
+#include <iostream>
+
 #if defined(SDL_VIDEO_DRIVER_X11)
 # define Font UnConflictMe
 # define Display X11Display
 # include "SDL_syswm.h"
-# include <X11/Xatom.h>
 # undef Font
 # undef Display
 #include <vector>
@@ -450,7 +451,7 @@ static const uint8_t status_colors[Display::MAX_STATUS_LINE_LENGTH+2] = {
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 };
 
-void SDLSoft_Display::Pump(bool wait) {
+void SDLSoft_Display::Pump(bool wait, int timeout_ms) {
   bool need_present = exposed;
   if(dirty_left <= dirty_right && dirty_top <= dirty_bot) {
     if(status_dirty && dirty_bot >= cur_height-1
@@ -503,12 +504,38 @@ void SDLSoft_Display::Pump(bool wait) {
     prev_status_len = GetStatusLine().length();
     status_dirty = false;
   }
-  if(need_present) SDL_RenderPresent(renderer);
+  if(need_present) {
+    if(overlaytexture) {
+      int sl = dirty_left * glyph_width;
+      int st = dirty_top * glyph_height;
+      int sr = (dirty_right+1) * glyph_width - 1;
+      int sb = (dirty_bot+1) * glyph_height - 1;
+      if(sl < overlay_x) sl = overlay_x;
+      if(st < overlay_y) st = overlay_y;
+      if(sr >= overlay_x+overlay_w) sr = overlay_x+overlay_w-1;
+      if(sb >= overlay_y+overlay_h) sb = overlay_y+overlay_h-1;
+      if(sr>=sl && sb>=st) {
+        SDL_Rect drect = {sl, st, sr-sl+1, sb-st+1};
+        SDL_Rect usrect = {drect.x-overlay_x, drect.y-overlay_y,
+                           drect.w, drect.h};
+        SDL_Rect ssrect;
+        ssrect.x = usrect.x * overlay_source_w / overlay_w;
+        ssrect.y = usrect.y * overlay_source_h / overlay_h;
+        ssrect.w = (usrect.x+usrect.w) * overlay_source_w / overlay_w
+          - ssrect.x;
+        ssrect.h = (usrect.y+usrect.h) * overlay_source_h / overlay_h
+          - ssrect.y;
+        SDL_RenderCopy(renderer, overlaytexture, &ssrect, &drect);
+      }
+    }
+    SDL_RenderPresent(renderer);
+  }
   exposed = false;
   dirty_left = cur_width; dirty_top = cur_height;
   dirty_right = 0; dirty_bot = 0;
   SDL_Event evt;
-  while(wait ? SDL_WaitEvent(&evt) : SDL_PollEvent(&evt)) {
+  while(wait ? timeout_ms > 0 ? SDL_WaitEventTimeout(&evt, timeout_ms)
+        : SDL_WaitEvent(&evt) : SDL_PollEvent(&evt)) {
     switch(evt.type) {
     case SDL_QUIT: throw quit_exception(); break;
     case SDL_WINDOWEVENT:
@@ -624,4 +651,14 @@ char* SDLSoft_Display::GetOtherClipboardText() {
 
 void SDLSoft_Display::FreeOtherClipboardText(char* ptr) {
   safe_free(ptr);
+}
+
+void SDLSoft_Display::SetOverlayTexture(SDL_Texture* tex, int w, int h) {
+  overlaytexture = tex;
+  overlay_source_w = w;
+  overlay_source_h = h;
+}
+
+void SDLSoft_Display::SetOverlayRegion(int x, int y, int w, int h) {
+  overlay_x = x; overlay_y = y; overlay_w = w; overlay_h = h;
 }

@@ -6,7 +6,7 @@ CPPFLAGS+=-DXGL_ENABLE_SHADERS -DXGL_ENABLE_FBO -DNO_LUA=1
 CPPFLAGS+=-DTEG_NO_DIE_IMPLEMENTATION -DTEG_NO_POSTINIT
 CPPFLAGS+=-DTTTP_CLIENT_VERSION="\"v1.0b3\""
 
-EXE_LIST=tttpclient
+EXE_LIST=tttpclient paint
 
 TEG_OBJECTS=obj/teg/io.o obj/teg/xgl.o obj/teg/main.o obj/teg/miscutil.o obj/teg/netsock.o
 
