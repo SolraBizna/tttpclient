@@ -47,7 +47,8 @@ void Container::InputDelegate::Text(uint8_t* text, size_t textlen) {
   if(p) p->HandleText(text, textlen);
 }
 void Container::InputDelegate::MouseMove(int16_t x, int16_t y) {
-  container.mousex = x; container.mousey = y;
+  container.mousex = x / container.display.GetCharWidth();
+  container.mousey = y / container.display.GetCharHeight();
 }
 void Container::InputDelegate::MouseButton(int pressed, uint16_t button) {
   if(!pressed) return;

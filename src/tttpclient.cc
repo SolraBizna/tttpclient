@@ -378,7 +378,8 @@ static int parse_command_line(int argc, char* argv[]) {
     std::cerr << "Usage:" << std::endl;
     std::cerr << "  tttpclient <font path> [options...]" << std::endl;
     std::cerr << "The font must be a PNG containing all 256 glyphs of codepage 437, packed" << std::endl;
-    std::cerr << "tightly in 8 columns and 8 rows. The glyph size is autodetected." << std::endl;
+    std::cerr << "tightly in 8 columns and 8 rows. The glyph size is autodetected, and may not" << std::endl;
+    std::cerr << "be greater than 255x255." << std::endl;
     std::cerr << "Options:" << std::endl;
     std::cerr << "  -t <title>: Specify a custom window title." << std::endl;
     std::cerr << "  -a: Try basic hardware acceleration. May cause problems with some drivers." << std::endl;

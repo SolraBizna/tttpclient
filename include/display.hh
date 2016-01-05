@@ -43,6 +43,7 @@ class Display {
   InputDelegate* delegate;
   std::string status;
 protected:
+  uint32_t glyph_width, glyph_height;
   inline InputDelegate& GetInputDelegate() {
     if(!delegate)
       throw std::string("GetInputDelegate called with no delegate set");
@@ -54,7 +55,7 @@ protected:
   virtual void StatusChanged() = 0;
 public:
   static const int MAX_STATUS_LINE_LENGTH = 78;
-  Display();
+  Display(uint32_t glyph_width, uint32_t glyph_height);
   virtual ~Display();
   void SetInputDelegate(InputDelegate*);
   void Statusf(const char* format, ...);
@@ -72,6 +73,8 @@ public:
   // that always returns NULL and does nothing to free
   virtual char* GetOtherClipboardText();
   virtual void FreeOtherClipboardText(char*);
+  inline uint32_t GetCharWidth() const { return glyph_width; }
+  inline uint32_t GetCharHeight() const { return glyph_height; }
 };
 
 #endif

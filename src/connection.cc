@@ -235,6 +235,9 @@ bool AttemptConnection(Display& display,
                           nullptr, fatal, foul);
   if(queue_depth > 0)
     tttp_client_set_queue_depth(tttp, queue_depth);
+  tttp_client_set_mouse_resolution(tttp,
+                                   display.GetCharWidth(),
+                                   display.GetCharHeight());
   uint8_t public_key[TTTP_PUBLIC_KEY_LENGTH];
   tttp_handshake_result res;
   if(!no_auth) {
@@ -308,7 +311,8 @@ bool AttemptConnection(Display& display,
       }
     }
   }
-  tttp_client_request_flags(tttp, no_crypt ? 0 : TTTP_FLAG_ENCRYPTION);
+  tttp_client_request_flags(tttp, TTTP_FLAG_PRECISE_MOUSE |
+                            (no_crypt ? 0 : TTTP_FLAG_ENCRYPTION));
   do {
     res = tttp_client_pump_flags(tttp);
     switch(res) {
@@ -347,14 +351,14 @@ bool AttemptConnection(Display& display,
                        MAC16_BLACK|(MAC16_RED<<4));
     return false;
   }
-  else if(final_flags & ~TTTP_FLAG_ENCRYPTION) {
-    // TTTP_FLAG_ENCRYPTION is the only flag we _actually_ support
+  else if(final_flags & ~(TTTP_FLAG_ENCRYPTION|TTTP_FLAG_PRECISE_MOUSE)) {
+    // these are the only flags we actually support
     server_socket.Close();
     CLOSE_AUTOPASSFILE();
     display.Statusf("");
     Widgets::ModalInfo(display,
-                       "The server requires a newer version of the TTTP"
-                       " protocol, which this client does not support."
+                       "The server requires an extension to the TTTP"
+                       " protocol which this client does not support."
                        "\n\nTry upgrading to a newer version of TTTPClient.",
                        MAC16_BLACK|(MAC16_RED<<4));
     return false;

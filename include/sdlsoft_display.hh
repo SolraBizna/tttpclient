@@ -24,7 +24,6 @@
 class SDLSoft_Display : public Display {
   bool status_dirty, exposed, has_alpha, has_color;
   uint8_t* glyphdata;
-  uint32_t glyph_width, glyph_height;
   uint32_t glyphpitch; // bytes between GLYPHS, not ROWS of glyphs
   uint16_t cur_width, cur_height, dirty_left, dirty_top, dirty_right,dirty_bot;
   uint16_t prev_status_len;

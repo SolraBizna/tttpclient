@@ -19,7 +19,12 @@
 
 #include <iostream>
 
-Display::Display() : delegate(NULL) {}
+Display::Display(uint32_t glyph_width, uint32_t glyph_height)
+  : delegate(NULL), glyph_width(glyph_width), glyph_height(glyph_height)  {
+  if(glyph_width == 0 || glyph_width > 255
+     || glyph_height == 0 || glyph_height > 255)
+    throw std::string("Absurd font size");
+}
 
 Display::~Display() {}
 

@@ -62,11 +62,10 @@ void copy_out_glyph_data(uint32_t glyph_width, uint32_t glyph_height,
 }
 
 SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel)
-  : status_dirty(false), exposed(false),
+  : Display(font.GetGlyphWidth(), font.GetGlyphHeight()),
+    status_dirty(false), exposed(false),
     cur_width(0), cur_height(0), prev_status_len(0), frametexture(NULL) {
   if(SDL_Init(SDL_INIT_VIDEO)) throw std::string(SDL_GetError());
-  glyph_width = font.GetGlyphWidth();
-  glyph_height = font.GetGlyphHeight();
   glyphpitch = glyph_width * glyph_height;
   if(glyphpitch / glyph_height != glyph_width)
     throw std::string("really improbable integer overflow");
@@ -548,8 +547,7 @@ void SDLSoft_Display::Pump(bool wait) {
       }
       break;
     case SDL_MOUSEMOTION:
-      GetInputDelegate().MouseMove(evt.motion.x / glyph_width,
-                               evt.motion.y / glyph_height);
+      GetInputDelegate().MouseMove(evt.motion.x, evt.motion.y);
       wait = false;
       break;
     case SDL_MOUSEBUTTONDOWN:
