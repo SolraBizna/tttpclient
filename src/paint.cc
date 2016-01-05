@@ -23,6 +23,7 @@
 #include "startup.hh"
 #include "widgets.hh"
 #include "mac16.hh"
+#include "io.hh"
 
 #include <iostream>
 #include <chrono>
