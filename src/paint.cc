@@ -841,7 +841,8 @@ int teg_main(int argc, char* argv[]) {
     }
   }
   catch(std::string s) {
-    display->SetOverlayTexture(nullptr, 0, 0);
+    if(display)
+      display->SetOverlayTexture(nullptr, 0, 0);
     std::cerr << "There was an unhandled error." << std::endl << std::endl;
     std::cerr << s << std::endl;
     try {
@@ -856,7 +857,8 @@ int teg_main(int argc, char* argv[]) {
   }
   catch(quit_exception) { /* quit silently */ }
   catch(std::exception& e) {
-    display->SetOverlayTexture(nullptr, 0, 0);
+    if(display)
+      display->SetOverlayTexture(nullptr, 0, 0);
     std::cerr << "There was an unhandled exception." << std::endl << std::endl;
     std::cerr << e.what() << std::endl;
     try {
