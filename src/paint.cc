@@ -46,7 +46,7 @@ static const int GLYPHS_Y = 6;
 static const int KEYS_Y = 24;
 
 static const uint8_t OVERLAY_MIN_ALPHA = 0;
-static const uint8_t OVERLAY_STATIC_ALPHA = 63;
+static const uint8_t OVERLAY_STARTING_ALPHA = 63;
 static const uint8_t OVERLAY_MAX_ALPHA = 254; // 255 hits a bug in SDL 2.0.2
 static const int OVERLAY_PULSE_PERIOD_NUM = 5;
 static const int OVERLAY_PULSE_PERIOD_DEN = 2;
@@ -76,7 +76,7 @@ static uint8_t bgcolor = 0;
 static int selected_glyph = PAINT_GLYPH;
 static bool overlay_on = true, overlay_pulsing = false,
   overlay_pulse_polarity;
-static int overlay_alpha;
+static int overlay_alpha = OVERLAY_STARTING_ALPHA;
 static std::chrono::steady_clock::time_point overlay_pulse_tick;
 
 static int mouse_x_glyph = -1;
@@ -356,8 +356,10 @@ static void init_screen(Framebuffer& fb) {
               : DISABLED_COLOR, "P: pulse o-lay");
   fb.PrintStr(chars_wide + 1, KEYS_Y+2, overlay_path != nullptr ? TEXT_COLOR
               : DISABLED_COLOR, "O: toggle o-lay");
-  fb.PrintStr(chars_wide + 1, KEYS_Y+3, DISABLED_COLOR, "Z: undo");
-  fb.PrintStr(chars_wide + 1, KEYS_Y+4, DISABLED_COLOR, "Y: redo");
+  fb.PrintStr(chars_wide + 1, KEYS_Y+3, overlay_path != nullptr ? TEXT_COLOR
+              : DISABLED_COLOR, "0-9: o-lay alpha");
+  fb.PrintStr(chars_wide + 1, KEYS_Y+4, DISABLED_COLOR, "Z: undo");
+  fb.PrintStr(chars_wide + 1, KEYS_Y+5, DISABLED_COLOR, "Y: redo");
   // if I don't display it, nobody will ever know that I planned it
   //fb.PrintStr(chars_wide + 1, KEYS_Y+5, TEXT_COLOR, "F: fill");
   poke_color_selection(fb, FOREGROUND_COLOR_Y, fgcolor, SELECTED_COLOR_GLYPH);
@@ -411,6 +413,7 @@ static void paint(int glyph, int x, int y, bool erasing) {
 
 static void paint_path(int glyph, int x, int y, int ex, int ey,
                        bool erasing) {
+  paint(glyph, x, y, erasing);
   if(x == ex) {
     if(y == ey) return;
     if(ey < y) std::swap(y, ey);
@@ -625,7 +628,7 @@ int teg_main(int argc, char* argv[]) {
       else
         display->SetOverlayRegion(0, 0, target_width, target_height);
       SDL_SetTextureBlendMode(overlay, SDL_BLENDMODE_BLEND);
-      if(SDL_SetTextureAlphaMod(overlay, OVERLAY_STATIC_ALPHA))
+      if(SDL_SetTextureAlphaMod(overlay, OVERLAY_STARTING_ALPHA))
         throw std::string("Can't set alpha modulation with this renderer");
       display->SetOverlayTexture(overlay, overlay_width, overlay_height);
     }
@@ -646,13 +649,22 @@ int teg_main(int argc, char* argv[]) {
             poke_glyph_selection(fb, selected_glyph, SELECTED_GLYPH_COLOR);
           }
           break;
+        case KEY_0:
+          // 255 breaks software renderer in 2.0.2
+          SDL_SetTextureAlphaMod(overlay, 254);
+          if(overlay_on) fb.DirtyWhole();
+          break;
+        case KEY_1: case KEY_2: case KEY_3: case KEY_4: case KEY_5: case KEY_6:
+        case KEY_7: case KEY_8: case KEY_9:
+          SDL_SetTextureAlphaMod(overlay, (overlay_alpha = (scancode-KEY_0)*255/10));
+          if(overlay_on) fb.DirtyWhole();
+          break;
         case KEY_O:
           if(overlay == nullptr) break;
           overlay_on = !overlay_on;
           overlay_pulsing = false;
           if(overlay_on) {
             // assume success
-            SDL_SetTextureAlphaMod(overlay, OVERLAY_STATIC_ALPHA);
             display->SetOverlayTexture(overlay, overlay_width, overlay_height);
           }
           else
@@ -663,7 +675,6 @@ int teg_main(int argc, char* argv[]) {
           if(overlay == nullptr) break;
           if(overlay_pulsing) {
             overlay_pulsing = false;
-            SDL_SetTextureAlphaMod(overlay, OVERLAY_STATIC_ALPHA);
             fb.DirtyRect(0, 0, chars_wide, chars_high);
           }
           else {
@@ -673,7 +684,6 @@ int teg_main(int argc, char* argv[]) {
             overlay_on = true;
             overlay_pulsing = true;
             overlay_pulse_polarity = true;
-            overlay_alpha = OVERLAY_STATIC_ALPHA;
             overlay_pulse_tick = std::chrono::steady_clock::now();
           }
           break;
@@ -737,7 +747,7 @@ int teg_main(int argc, char* argv[]) {
             painting = true;
             paint(selected_glyph, mouse_x_glyph, mouse_y_halfglyph, false);
           }
-          else if(mouse_x_glyph > chars_wide+1
+          else if(mouse_x_glyph >= chars_wide+1
                   && mouse_x_glyph <= fb.GetWidth()
                   && mouse_y_glyph >= 0 && mouse_y_glyph < chars_high) {
             int x = mouse_x_glyph - chars_wide - 1;
@@ -814,12 +824,12 @@ int teg_main(int argc, char* argv[]) {
       bool undo_is_okay = cur_undo != oldest_undo;
       bool redo_is_okay = cur_undo != newest_undo;
       if(undo_is_okay != undo_was_okay) {
-        poke_ui_region_color(fb, KEYS_Y+3,
+        poke_ui_region_color(fb, KEYS_Y+4,
                              undo_is_okay?TEXT_COLOR:DISABLED_COLOR);
         undo_was_okay = undo_is_okay;
       }
       if(redo_is_okay != redo_was_okay) {
-        poke_ui_region_color(fb, KEYS_Y+4,
+        poke_ui_region_color(fb, KEYS_Y+5,
                              redo_is_okay?TEXT_COLOR:DISABLED_COLOR);
         redo_was_okay = redo_is_okay;
       }
