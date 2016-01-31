@@ -236,6 +236,12 @@ static int parse_command_line(int argc, char* argv[]) {
       --argc;
       while(*++arg) {
         switch(*arg) {
+        default:
+          std::cerr << "Unknown option: " << *arg << std::endl;
+          // fall through
+        case '?':
+          ret = 1;
+          break;
         case 'q': {
           if(queue_depth >= 0) {
             std::cerr << "-q given more than once" << std::endl;
