@@ -106,6 +106,13 @@ Font::Font(const char* fontpath)
     uint8_t* p = ((uint8_t**)buffer)[y];
     for(uint32_t x = 0; x < width; ++x) {
       uint8_t r = *p++; uint8_t g = *p++; uint8_t b = *p++; uint8_t a = *p++;
+      if(r == 255 && g == 0 && b == 255 && a == 255) {
+        /* pure magenta = transparent */
+        p[-4] = r = 0;
+        p[-3] = g = 0;
+        p[-2] = b = 0;
+        p[-1] = a = 0;
+      }
       if(a == 0) has_alpha = true;
       else {
         if(a != 255) has_alpha = true;
