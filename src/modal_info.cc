@@ -40,6 +40,7 @@ void Widgets::ModalInfo(Display& display, const std::string& prompt,
   container.FocusFirstEnabledWidget();
   container.SetKeyHandler([&finished](tttp_scancode key) -> bool {
       switch(key) {
+      case KEY_KEYPAD_ENTER:
       case KEY_ENTER:
         finished = true;
         break;

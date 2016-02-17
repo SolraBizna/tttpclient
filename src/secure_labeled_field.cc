@@ -172,6 +172,7 @@ void SecureLabeledField::HandleKey(tttp_scancode scancode) {
   case KEY_END:
     if(cursor_pos < content.length()) { cursor_pos = content.length(); Draw();}
     break;
+  case KEY_KEYPAD_ENTER:
   case KEY_ENTER:
     if(action) action();
     break;
