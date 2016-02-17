@@ -316,6 +316,31 @@ bool DoConnectionDialog(Display& display) {
       host_widget->SetUpNeighbor(connect_no_crypt_button);
     }
     container.FocusFirstEnabledWidget();
+    std::function<void()> next_action;
+    if(!no_crypt) next_action = [&connect_button]{
+        connect_button->HandleClick(TTTP_LEFT_MOUSE_BUTTON);
+      };
+    else next_action = [&connect_no_crypt_button]{
+        connect_no_crypt_button->HandleClick(TTTP_LEFT_MOUSE_BUTTON);
+      };
+    if(password_widget && password_widget->IsEnabled()) {
+      password_widget->SetAction(next_action);
+      next_action = [&container,&password_widget]{
+        container.SetFocusedWidget(password_widget);
+      };
+    }
+    if(username_widget && username_widget->IsEnabled()) {
+      username_widget->SetAction(next_action);
+      next_action = [&container,&username_widget]{
+        container.SetFocusedWidget(username_widget);
+      };
+    }
+    if(host_widget && host_widget->IsEnabled()) {
+      host_widget->SetAction(next_action);
+      next_action = [&container,&host_widget]{
+        container.SetFocusedWidget(host_widget);
+      };
+    }
     do {
       connecting = false; connecting_insecure = false; cancelled = false;
       container.RunModal([&connecting,&cancelled]() -> bool

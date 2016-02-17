@@ -174,6 +174,7 @@ public:
 class LabeledField : public Widget {
   std::string label, content;
   std::function<bool(uint8_t)> filter;
+  std::function<void()> action;
   size_t maxlen, cursor_pos;
   unsigned int label_w, text_x, text_w;
   bool enabled;
@@ -191,6 +192,7 @@ public:
   void HandleText(const uint8_t* text, size_t textlen) override;
   void HandleKey(tttp_scancode scancode) override;
   void HandleClick(uint16_t button) override;
+  inline void SetAction(std::function<void()> action) { this->action = action;}
 };
 
 class SecureLabeledField : public Widget {
@@ -207,6 +209,7 @@ class SecureLabeledField : public Widget {
     void insert(size_t i, size_t count, uint8_t c);
     void erase(size_t i, size_t count);
   } content;
+  std::function<void()> action;
   size_t cursor_pos;
   unsigned int label_w, text_x, text_w;
   bool enabled;
@@ -222,6 +225,7 @@ public:
   void HandleText(const uint8_t* text, size_t textlen) override;
   void HandleKey(tttp_scancode scancode) override;
   void HandleClick(uint16_t button) override;
+  inline void SetAction(std::function<void()> action) { this->action = action;}
 };
 
 class Button : public Widget {
