@@ -95,7 +95,7 @@ static bool try_make_connection(Display& display,
 
 static bool wait_on_next_read = false;
 static std::chrono::steady_clock::time_point wait_end_timepoint;
-static int receive_on_server_socket(void*, void* buf, size_t bufsz) {
+static int receive_on_server_socket(void* _display, void* buf, size_t bufsz) {
   size_t len;
   std::string err;
   Net::IOResult res;
@@ -105,6 +105,7 @@ static int receive_on_server_socket(void*, void* buf, size_t bufsz) {
       size_t timeout_us = std::chrono::duration_cast<std::chrono::microseconds>(wait_end_timepoint - now).count();
       (void)Net::Select(nullptr,nullptr,nullptr,&socks,nullptr,nullptr,nullptr,
                         timeout_us);
+      ((Display*)_display)->Pump();
     }
   }
   len = bufsz;
@@ -243,7 +244,6 @@ bool AttemptConnection(Display& display,
     Widgets::ModalInfo(display, std::string("All of our attempts to connect to the server failed. The error was: ")+err, MAC16_BLACK|(MAC16_ORANGE<<4));
     return false;
   }
-  server_socket.SetBlocking(true);
   display.Statusf("Performing handshake...");
   // we have a connection, do the handshake
   if(tttp) {
@@ -490,6 +490,5 @@ bool AttemptConnection(Display& display,
   } while(res != TTTP_HANDSHAKE_ADVANCE);
   // Connection succeeded!
   display.Statusf("");
-  server_socket.SetBlocking(false);
   return true;
 }

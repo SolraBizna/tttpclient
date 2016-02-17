@@ -189,15 +189,19 @@ bool DoConnectionDialog(Display& display) {
       connection_user = autouser;
       if(autopassword) connection_pass = autopassword;
     }
-    return AttemptConnection(display,
-                             autohost,
-                             connection_targets,
-                             autouser ? autouser : "",
-                             autopassword
-                             ? reinterpret_cast<const uint8_t*>(autopassword)
-                             : nullptr,
-                             autopassword ? strlen(autopassword) : 0,
-                             no_crypt);
+    DiscardingInputDelegate del;
+    display.SetInputDelegate(&del);
+    bool ret = AttemptConnection(display,
+                                 autohost,
+                                 connection_targets,
+                                 autouser ? autouser : "",
+                                 autopassword
+                                ?reinterpret_cast<const uint8_t*>(autopassword)
+                                 : nullptr,
+                                 autopassword ? strlen(autopassword) : 0,
+                                 no_crypt);
+    display.SetInputDelegate(nullptr);
+    return ret;
   }
   else {
     std::shared_ptr<Widgets::LabeledField> host_widget
@@ -365,6 +369,8 @@ bool DoConnectionDialog(Display& display) {
           else pl = 0;
           uint8_t* pp_utf8 = reinterpret_cast<uint8_t*>(safe_malloc(pl*3));
           size_t pp_utf8_len = convert_cp437_to_utf8(pp, pp_utf8, pl)-pp_utf8;
+          DiscardingInputDelegate del;
+          display.SetInputDelegate(&del);
           bool ret = AttemptConnection(display,
                                        canon_name,
                                        connection_targets,
@@ -372,6 +378,7 @@ bool DoConnectionDialog(Display& display) {
                                        ? username_widget->GetContent() : "",
                                        pp, pl,
                                        connecting_insecure);
+          display.SetInputDelegate(nullptr);
           lsx_explicit_bzero(pp_utf8, pp_utf8_len);
           safe_free(pp_utf8);
           return ret;
