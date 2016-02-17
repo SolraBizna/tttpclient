@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 #include "display.hh"
 #include "modal_error.hh"
 #include "mac16.hh"
@@ -62,6 +63,9 @@ static void hexdump(const char* who, const uint8_t* buf, size_t size) {
 
 static std::forward_list<Net::SockStream*> socks = {&server_socket};
 
+// Wait up to 1/10 second if no data is forthcoming
+static const std::chrono::steady_clock::duration MAX_TIME_TO_AWAIT_READ = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::milliseconds(100));
+
 static bool try_make_connection(Display& display,
                                 const Net::Address& address,
                                 int number,
@@ -89,18 +93,38 @@ static bool try_make_connection(Display& display,
   }
 }
 
+static bool wait_on_next_read = false;
+static std::chrono::steady_clock::time_point wait_end_timepoint;
 static int receive_on_server_socket(void*, void* buf, size_t bufsz) {
-  size_t len = bufsz;
+  size_t len;
   std::string err;
-  Net::IOResult res = server_socket.Receive(err, buf, len);
+  Net::IOResult res;
+  if(wait_on_next_read) {
+    std::chrono::steady_clock::time_point now=std::chrono::steady_clock::now();
+    if(now < wait_end_timepoint) {
+      size_t timeout_us = std::chrono::duration_cast<std::chrono::microseconds>(wait_end_timepoint - now).count();
+      (void)Net::Select(nullptr,nullptr,nullptr,&socks,nullptr,nullptr,nullptr,
+                        timeout_us);
+    }
+  }
+  len = bufsz;
+  res = server_socket.Receive(err, buf, len);
   switch(res) {
-  case Net::IOResult::WOULD_BLOCK: return 0;
-  default:
+  case Net::IOResult::WOULD_BLOCK:
+    if(!wait_on_next_read) {
+      wait_on_next_read = true;
+      wait_end_timepoint = std::chrono::steady_clock::now()
+        + MAX_TIME_TO_AWAIT_READ;
+    }
+    else wait_on_next_read = false;
+    return 0;
   case Net::IOResult::CONNECTION_CLOSED:
   case Net::IOResult::MSGSIZE:
   case Net::IOResult::ERROR: return -1;
-  case Net::IOResult::OKAY: return len;
+  case Net::IOResult::OKAY: break;
   }
+  wait_on_next_read = false;
+  return len;
 }
 
 // TODO: We won't be sending much data, so do we need to worry about buffering?
