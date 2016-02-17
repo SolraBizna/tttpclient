@@ -339,7 +339,7 @@ bool DoConnectionDialog(Display& display) {
           if(password_widget) password_widget->GetContent(pp, pl);
           else pl = 0;
           uint8_t* pp_utf8 = reinterpret_cast<uint8_t*>(safe_malloc(pl*3));
-          size_t pp_utf8_len = pp_utf8-convert_cp437_to_utf8(pp, pp_utf8, pl);
+          size_t pp_utf8_len = convert_cp437_to_utf8(pp, pp_utf8, pl)-pp_utf8;
           bool ret = AttemptConnection(display,
                                        canon_name,
                                        connection_targets,
