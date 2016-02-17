@@ -95,16 +95,12 @@ static int receive_on_server_socket(void*, void* buf, size_t bufsz) {
   Net::IOResult res = server_socket.Receive(err, buf, len);
   switch(res) {
   case Net::IOResult::WOULD_BLOCK: return 0;
+  default:
   case Net::IOResult::CONNECTION_CLOSED:
   case Net::IOResult::MSGSIZE:
   case Net::IOResult::ERROR: return -1;
-  case Net::IOResult::OKAY: break;
+  case Net::IOResult::OKAY: return len;
   }
-  // try to read more data, in case some has arrived
-  int res2 = len == 0 ? 0
-    : receive_on_server_socket(nullptr, (uint8_t*)buf + len, bufsz-len);
-  if(res2 < 0) res2 = 0;
-  return len + res2;
 }
 
 // TODO: We won't be sending much data, so do we need to worry about buffering?
@@ -223,6 +219,7 @@ bool AttemptConnection(Display& display,
     Widgets::ModalInfo(display, std::string("All of our attempts to connect to the server failed. The error was: ")+err, MAC16_BLACK|(MAC16_ORANGE<<4));
     return false;
   }
+  server_socket.SetBlocking(true);
   display.Statusf("Performing handshake...");
   // we have a connection, do the handshake
   if(tttp) {
@@ -469,5 +466,6 @@ bool AttemptConnection(Display& display,
   } while(res != TTTP_HANDSHAKE_ADVANCE);
   // Connection succeeded!
   display.Statusf("");
+  server_socket.SetBlocking(false);
   return true;
 }
