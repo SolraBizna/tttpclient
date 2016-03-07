@@ -19,7 +19,7 @@
 #include "charconv.hh"
 
 #include <iostream>
-#include <thread>
+#include "threads.hh"
 
 #if defined(SDL_VIDEO_DRIVER_X11)
 # define Font UnConflictMe

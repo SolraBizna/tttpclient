@@ -8,7 +8,7 @@ LD=g++
 AR=ar
 
 # Flags passed to all calls that involve a C preprocessor.
-CPPFLAGS=-MP -MMD -Iinclude/ -Isrc/teg/ -Ilsx/include -Ilibtttp -D_UNICODE -DUNICODE -DMINGW -D_WIN32_WINNT=0x0501
+CPPFLAGS=-MP -MMD -Iinclude/ -Imingw-std-threads/ -Isrc/teg/ -Ilsx/include -Ilibtttp -D_UNICODE -DUNICODE -DMINGW -D_WIN32_WINNT=0x0501 -DUSE_MINGW_STD_THREADS
 CPPFLAGS_DEBUG=-DDEBUG=1
 CPPFLAGS_RELEASE=-DRELEASE=1 -DNDEBUG=1
 # Flags passed to the C compiler.
@@ -24,7 +24,7 @@ LDFLAGS=-mwindows
 LDFLAGS_DEBUG=-ggdb
 LDFLAGS_RELEASE=
 # Libraries.
-LIBS=-lmingw32 -lws2_32 -lSDL2 -lopengl32 -lglu32 -lpng -lz -lgmp /bin/sqlite3.dll
+LIBS=-lmingw32 -lws2_32 /bin/SDL2.dll -lopengl32 -lglu32 -lpng -lz -lgmp /bin/sqlite3.dll
 # Flags passed to the library archiver
 ARFLAGS=-rsc
 
