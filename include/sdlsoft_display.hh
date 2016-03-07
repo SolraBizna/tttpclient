@@ -21,7 +21,13 @@
 #include "display.hh"
 #include "font.hh"
 
+#include <chrono>
+
 class SDLSoft_Display : public Display {
+  typedef std::chrono::steady_clock clock;
+  bool throttle_framerate;
+  clock::time_point next_frame;
+  clock::duration frame_interval;
   bool status_dirty, exposed, has_alpha, has_color;
   uint8_t* glyphdata;
   uint32_t glyphpitch; // bytes between GLYPHS, not ROWS of glyphs
@@ -57,7 +63,9 @@ class SDLSoft_Display : public Display {
 protected:
   void StatusChanged() override;
 public:
-  SDLSoft_Display(Font& font, const char* title, bool accel);
+  // max_fps < 0 := try to do vsync
+  // max_fps == 0 := unlimited framerate
+  SDLSoft_Display(Font& font, const char* title, bool accel, float max_fps);
   ~SDLSoft_Display() override;
   void SetKeyRepeat(uint32_t delay, uint32_t interval) override;
   void SetPalette(const uint8_t palette[48]) override;

@@ -19,6 +19,7 @@
 #include "charconv.hh"
 
 #include <iostream>
+#include <thread>
 
 #if defined(SDL_VIDEO_DRIVER_X11)
 # define Font UnConflictMe
@@ -62,7 +63,8 @@ void copy_out_glyph_data(uint32_t glyph_width, uint32_t glyph_height,
   }
 }
 
-SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel)
+SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel,
+                                 float max_fps)
   : Display(font.GetGlyphWidth(), font.GetGlyphHeight()),
     status_dirty(false), exposed(false),
     cur_width(0), cur_height(0), prev_status_len(0), frametexture(NULL) {
@@ -121,14 +123,47 @@ SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel)
     safe_free(glyphdata);
     throw std::string(SDL_GetError());
   }
-  renderer = SDL_CreateRenderer(window, -1, accel
-                                ? SDL_RENDERER_ACCELERATED
-                                : SDL_RENDERER_SOFTWARE);
+  if(renderer == NULL && max_fps < 0) {
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC
+                                  | (accel
+                                     ? SDL_RENDERER_ACCELERATED
+                                     : SDL_RENDERER_SOFTWARE));
+  }
+  if(renderer == NULL)
+    renderer = SDL_CreateRenderer(window, -1, accel
+                                  ? SDL_RENDERER_ACCELERATED
+                                  : SDL_RENDERER_SOFTWARE);
   if(renderer == NULL) {
     SDL_DestroyWindow(window);
     SDL_Quit();
     safe_free(glyphdata);
     throw std::string(SDL_GetError());
+  }
+  SDL_RendererInfo info;
+  SDL_GetRendererInfo(renderer, &info);
+  if(max_fps < 0) {
+    SDL_DisplayMode mode;
+    mode.refresh_rate = 0;
+    SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(window), &mode);
+    if(mode.refresh_rate == 0) {
+      std::cerr << "Could not determine your display's refresh rate. Assuming 60Hz." << std::endl;
+      mode.refresh_rate = 60;
+    }
+    // 59Hz is commonly given for 60Hz interlaced displays, where 60Hz is a
+    // progressive mode
+    else if(mode.refresh_rate == 59) mode.refresh_rate = 60;
+    if(!(info.flags & SDL_RENDERER_PRESENTVSYNC)) {
+      std::cerr << "Did not get a renderer that could do vertical synchronization." << std::endl;
+      if(!accel)
+        std::cerr << "(It may work if you try the -a option.)" << std::endl;
+      std::cerr << "Instead of doing vertical sync, locking framerate to " << mode.refresh_rate << "Hz." << std::endl;
+      max_fps = mode.refresh_rate;
+    }
+    else {
+      // Throttle framerate to double the monitor's refresh rate, in case of
+      // broken vsync
+      max_fps = mode.refresh_rate * 2;
+    }
   }
   statustexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888,
                                     SDL_TEXTUREACCESS_STREAMING, glyph_width
@@ -140,6 +175,12 @@ SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel)
     SDL_Quit();
     safe_free(glyphdata);
     throw std::string(SDL_GetError());
+  }
+  if(max_fps > 0) {
+    throttle_framerate = true;
+    next_frame = clock::now();
+    frame_interval = std::chrono::duration_cast<clock::duration>
+      (std::chrono::duration<float>(1.f / max_fps));
   }
 }
 
@@ -503,6 +544,19 @@ void SDLSoft_Display::Pump(bool wait, int timeout_ms) {
     }
     prev_status_len = GetStatusLine().length();
     status_dirty = false;
+  }
+  if(throttle_framerate) {
+    clock::time_point now;
+    while((now = clock::now()) < next_frame)
+      std::this_thread::sleep_until(next_frame);
+    int count = (now - next_frame) / frame_interval;
+    if(count == 0)
+      // we will wait until the next frame_interval passes
+      next_frame += frame_interval;
+    else
+      // we have already passed the point at which the next frame should
+      // have rendered; "eat up" the missing frames
+      next_frame += frame_interval * count;
   }
   if(need_present) {
     if(overlaytexture) {

@@ -44,6 +44,8 @@ tttp_client* tttp = nullptr;
 static enum class DisplayMode {
   DEFAULT, ACCELERATED
 } display_mode = DisplayMode::DEFAULT;
+static float max_fps = -1;
+static bool have_max_fps = false;
 
 static Display* display = nullptr;
 static bool pasting_enabled = false;
@@ -363,6 +365,42 @@ static int parse_command_line(int argc, char* argv[]) {
         case 'v':
           std::cout << "TTTPClient " TTTP_CLIENT_VERSION << std::endl;
           return 1;
+        case 'V':
+          if(have_max_fps) {
+            std::cerr << "multiple framerate strategies given" << std::endl;
+            ret = 1;
+          }
+          else {
+            max_fps = -1;
+            have_max_fps = true;
+          }
+          break;
+        case 'r': {
+          if(have_max_fps) {
+            std::cerr << "multiple framerate strategies given" << std::endl;
+            ret = 1;
+            ++argv; --argc;
+            break;
+          }
+          if(argc <= 0) {
+            std::cerr << "No argument given for -r" << std::endl;
+            ret = 1;
+            break;
+          }
+          char* endptr;
+          errno = 0;
+          float f = strtof(*argv, &endptr);
+          if(errno != 0 || *endptr || endptr == *argv
+             || ((f < 0.1f || f > 1000) && f != 0.f)){
+            ++argv; --argc;
+            std::cerr << "Argument for -r must be in range 0.1 -- 1000, or be 0" << std::endl;
+            ret = 1;
+            break;
+          }
+          ++argv; --argc;
+          max_fps = f;
+          have_max_fps = true;
+        } break;
         }
       }
     }
@@ -389,6 +427,9 @@ static int parse_command_line(int argc, char* argv[]) {
     std::cerr << "Options:" << std::endl;
     std::cerr << "  -t <title>: Specify a custom window title." << std::endl;
     std::cerr << "  -a: Try basic hardware acceleration. May cause problems with some drivers." << std::endl;
+    std::cerr << "  -r <framerate>: Limit framerate to a specified value between 0.1 and 1000." << std::endl;
+    std::cerr << "  -r 0: Unlimited framerate." << std::endl;
+    std::cerr << "  -V: Try to synchronize framerate to monitor. (default)" << std::endl;
     std::cerr << "  -q <depth>: Queue depth to request. Range is 0-255, default is 0 (server's" << std::endl;
     std::cerr << "discretion)" << std::endl;
     //std::cerr << "  -f: Use fullscreen mode at startup (can always be toggled with alt-enter)" << std::endl;
@@ -421,7 +462,8 @@ int teg_main(int argc, char* argv[]) {
       Font font(font_path);
       display = new SDLSoft_Display(font, window_title ? window_title
                                     : "TTTPClient " TTTP_CLIENT_VERSION,
-                                    display_mode == DisplayMode::ACCELERATED);
+                                    display_mode == DisplayMode::ACCELERATED,
+                                    max_fps);
     }
     display->SetPalette(mac16);
     std::string err;
