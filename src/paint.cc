@@ -589,7 +589,8 @@ int teg_main(int argc, char* argv[]) {
       Font font(font_path);
       display = new SDLSoft_Display(font, "Paint from TTTPClient "
                                     TTTP_CLIENT_VERSION,
-                                    display_mode == DisplayMode::ACCELERATED);
+                                    display_mode == DisplayMode::ACCELERATED,
+                                    0);
       SDL_RendererInfo info;
       SDL_version vers;
       SDL_GetRendererInfo(display->GetRenderer(), &info);
