@@ -283,7 +283,7 @@ bool AttemptConnection(Display& display,
       if(!PKDB::GetPublicKey(canon_name, public_key)) {
         display.Statusf("");
         server_socket.Close();
-        Widgets::ModalInfo(display, "The server has a hidden public key. You must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when " PMOD " is held.");
+        Widgets::ModalInfo(display, "The server has a hidden public key. In order to connect to this server, you must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when the " PMOD " key is held.");
         CLOSE_AUTOPASSFILE();
         return false;
       }
@@ -294,11 +294,11 @@ bool AttemptConnection(Display& display,
       uint8_t filed_public_key[TTTP_PUBLIC_KEY_LENGTH];
       if(PKDB::GetPublicKey(canon_name, filed_public_key)) {
         server_socket.Close();
-        Widgets::ModalInfo(display, "The server is refusing to confirm its identity, but it was perfectly happy to do so in the past. SOMEONE IS PROBABLY TRYING TO IMPERSONATE THIS SERVER!\n\nContact the server operator.\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
+        Widgets::ModalInfo(display, "The server is refusing to confirm its identity, even though it was perfectly happy to do so in the past. SOMEONE IS PROBABLY TRYING TO IMPERSONATE THIS SERVER!\n\nContact the server operator.\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
         CLOSE_AUTOPASSFILE();
         return false;
       }
-      else if(!Widgets::ModalConfirm(display, "This server is refusing to authenticate itself. Its identity cannot be proven. Encryption is still possible, but who knows who's on the other side?\n\nAre you sure you want to continue connecting?")) {
+      else if(!Widgets::ModalConfirm(display, "This server is refusing to authenticate itself. Its identity cannot be proven. Encryption is still technically possible, but there's no way to know who you're actually communicating with.\n\nAre you sure you want to continue connecting?")) {
         server_socket.Close();
         CLOSE_AUTOPASSFILE();
         return false;
@@ -324,7 +324,7 @@ bool AttemptConnection(Display& display,
         char fingerprint[TTTP_FINGERPRINT_BUFFER_SIZE];
         tttp_get_key_fingerprint(public_key, fingerprint);
         display.Statusf("");
-        if(Widgets::ModalConfirm(display, std::string("You have never connected to ")+canon_name+" before. The public key fingerprint is:\n\n"+fingerprint+"\n\nWould you like to remember this key, and continue connecting?"))
+        if(Widgets::ModalConfirm(display, std::string("You have never connected to ")+canon_name+" before. Its public key fingerprint, which you can use to confirm the server's identity, is:\n\n"+fingerprint+"\n\nWould you like to remember this key, and continue connecting?"))
           PKDB::AddPublicKey(canon_name, public_key);
         else
           return false;
@@ -357,8 +357,7 @@ bool AttemptConnection(Display& display,
     Widgets::ModalInfo(display,
                        "The server requires the \"future crypto\" extension"
                        " to the TTTP protocol. This client does not support"
-                       " it.\n\nTry upgrading to a newer version of"
-                       " TTTPClient.",
+                       " it.\n\nTry upgrading to a newer client.",
                        MAC16_BLACK|(MAC16_RED<<4));
     return false;
   }
@@ -367,8 +366,9 @@ bool AttemptConnection(Display& display,
     CLOSE_AUTOPASSFILE();
     display.Statusf("");
     Widgets::ModalInfo(display,
-                       "The server requires Unicode mode, but TTTPClient only"
-                       " supports the default, CP437 mode.",
+                       "The server requires Unicode mode, but TTTPClient can"
+                       " only operate in 8-bit mode. You will need to use a"
+                       " different client with this server.",
                        MAC16_BLACK|(MAC16_RED<<4));
     return false;
   }
@@ -380,7 +380,7 @@ bool AttemptConnection(Display& display,
     Widgets::ModalInfo(display,
                        "The server requires an extension to the TTTP"
                        " protocol which this client does not support."
-                       "\n\nTry upgrading to a newer version of TTTPClient.",
+                       "\n\nTry upgrading to a newer client.",
                        MAC16_BLACK|(MAC16_RED<<4));
     return false;
   }
@@ -388,7 +388,7 @@ bool AttemptConnection(Display& display,
     if(!Widgets::ModalConfirm(display,
                               "The server does not support encryption. This"
                               " connection will NOT be secure.\n\nWould you"
-                              " like to continue without encryption?")) {
+                              " like to continue, even without encryption?")) {
       server_socket.Close();
       CLOSE_AUTOPASSFILE();
       display.Statusf("");
@@ -405,10 +405,10 @@ bool AttemptConnection(Display& display,
         server_socket.Close();
         if(username == "")
           Widgets::ModalInfo(display,
-                             "This server does not support guest connections.");
+                             "This server does not allow guest connections. You probably need to provide a username and password.");
         else
           Widgets::ModalInfo(display,
-                             "This server does not support username-based authentication.");
+                             "This server does not support username-based authentication. You might try connecting with an empty username.");
         display.Statusf("");
         return false;
       case TTTP_HANDSHAKE_CONTINUE:
@@ -463,20 +463,27 @@ bool AttemptConnection(Display& display,
       server_socket.Close();
       if(no_auth)
         Widgets::ModalInfo(display,
-                           "The server did not allow our connection. This"
-                           " server may require authentication.");
+                           "This server does not allow connections without"
+                           " authentication.");
       else if(!server_sent_key)
         Widgets::ModalInfo(display,
-                           "Unable to authenticate with the server. Your"
-                           " username or password may have been incorrect, or"
-                           " the key currently on file for the server may be"
-                           " wrong.\n\nThe option to manage the public key for"
+                           "Authentication failed. You probably entered"
+                           " an incorrect username or password.\n\n"
+                           "However, it's also possible that the public key"
+                           " on file for this server is wrong, which could"
+                           " mean that the key has been changed or that"
+                           " someone is trying (and failing) to impersonate"
+                           " this server.\n\n"
+                           "If, after several tries, you're sure your username"
+                           " and password are correct, consult the server"
+                           " operator to see if a new key is needed.\n\n"
+                           "The option to change the public key on file for"
                            " a server becomes visible on the main connection"
-                           " menu when " PMOD " is held.");
+                           " menu when the " PMOD " key is held.");
       else
         Widgets::ModalInfo(display,
-                           "Unable to authenticate with the server. Your"
-                           " username or password may have been incorrect.");
+                           "Authentication failed. You entered an incorrect"
+                           " username or password.");
       return false;
     case TTTP_HANDSHAKE_CONTINUE:
       (void)Net::Select(nullptr,nullptr,nullptr,
