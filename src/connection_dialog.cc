@@ -381,7 +381,7 @@ bool DoConnectionDialog(Display& display) {
           display.SetInputDelegate(nullptr);
           lsx_explicit_bzero(pp_utf8, pp_utf8_len);
           safe_free(pp_utf8);
-          return ret;
+          if(ret) return true;
         }
       }
     } while(!cancelled);
