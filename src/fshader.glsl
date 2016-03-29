@@ -1,7 +1,7 @@
 // -*- c -*-
 
 /*
-  Copyright (C) 2015 Solra Bizna
+  Copyright (C) 2015-2016 Solra Bizna
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
