@@ -148,9 +148,9 @@ static int parse_command_line(int argc, char* argv[]) {
           char* endptr;
           errno = 0;
           long l = strtol(*argv, &endptr, 0);
-          if(errno != 0 || *endptr || endptr == *argv || l <= 0 || l > 255) {
+          if(errno != 0 || *endptr || endptr == *argv || l <= 0 || l > 254) {
             ++argv; --argc;
-            std::cerr << "Argument for -w must be in range 1 -- 255" << std::endl;
+            std::cerr << "Argument for -w must be in range 1 -- 254" << std::endl;
             ret = 1;
             break;
           }
@@ -166,9 +166,9 @@ static int parse_command_line(int argc, char* argv[]) {
           char* endptr;
           errno = 0;
           long l = strtol(*argv, &endptr, 0);
-          if(errno != 0 || *endptr || endptr == *argv || l <= 0 || l > 65535) {
+          if(errno != 0 || *endptr || endptr == *argv || l <= 0 || l > 254) {
             ++argv; --argc;
-            std::cerr << "Argument for -h must be in range 1 -- 255" << std::endl;
+            std::cerr << "Argument for -h must be in range 1 -- 254" << std::endl;
             ret = 1;
             break;
           }
@@ -554,6 +554,10 @@ int teg_main(int argc, char* argv[]) {
           if(wide == EOF || wide == 0 || high == EOF || high == 0) {
             load_failed = true;
             load_failed_why = "Not a valid FRM";
+          }
+          else if(wide == 255 || high == 255) {
+            load_failed = true;
+            load_failed_why = "FRM is too large";
           }
           else {
             loaded.Resize(wide, high);
