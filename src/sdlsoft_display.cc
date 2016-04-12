@@ -66,7 +66,7 @@ void copy_out_glyph_data(uint32_t glyph_width, uint32_t glyph_height,
 SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel,
                                  float max_fps)
   : Display(font.GetGlyphWidth(), font.GetGlyphHeight()),
-    status_dirty(false), exposed(false),
+    throttle_framerate(false), status_dirty(false), exposed(false),
     cur_width(0), cur_height(0), prev_status_len(0), frametexture(NULL) {
   if(SDL_Init(SDL_INIT_VIDEO)) throw std::string(SDL_GetError());
   glyphpitch = glyph_width * glyph_height;
