@@ -40,15 +40,19 @@ extern Net::SockStream server_socket;
 extern tttp_client* tttp;
 extern int queue_depth;
 
+enum class ConnResult {
+  OK, AUTH_FAILURE, CONN_FAILURE, OTHER_FAILURE
+};
+
 bool DoConnectionDialog(Display& display);
-// when this returns true, `tttp` has a tttp_client handle, a connection is
+// when this returns OK, `tttp` has a tttp_client handle, a connection is
 // open, and the handshake has just succeeded
-bool AttemptConnection(Display& display,
-                       const std::string& canon_name,
-                       std::forward_list<Net::Address> targets,
-                       const std::string& username,
-                       const uint8_t* password, size_t password_len,
-                       bool no_crypt);
+ConnResult AttemptConnection(Display& display,
+                             const std::string& canon_name,
+                             std::forward_list<Net::Address> targets,
+                             const std::string& username,
+                             const uint8_t* password, size_t password_len,
+                             bool no_crypt);
 void KeyManageDialog(Display& display,
                      const std::string& canon_name);
 

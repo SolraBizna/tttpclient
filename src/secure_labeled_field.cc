@@ -64,6 +64,10 @@ void SecureLabeledField::secure_string::erase(size_t i, size_t count) {
   len -= count;
 }
 
+void SecureLabeledField::secure_string::clear() {
+  len = 0;
+}
+
 SecureLabeledField::SecureLabeledField(Container& container, int x, int y,
                                        int w, int label_w,
                                        const std::string& label,
@@ -75,6 +79,12 @@ SecureLabeledField::SecureLabeledField(Container& container, int x, int y,
 }
 
 SecureLabeledField::~SecureLabeledField() {}
+
+void SecureLabeledField::Clear() {
+  content.clear();
+  cursor_pos = 0;
+  Draw();
+}
 
 void SecureLabeledField::Draw() {
   uint8_t* c = container.GetColorPointer(x,y);

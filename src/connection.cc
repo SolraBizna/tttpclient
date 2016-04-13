@@ -163,12 +163,12 @@ static void foul(void* d, const char* why) {
   throw quit_exception();
 }
 
-bool AttemptConnection(Display& display,
-                       const std::string& canon_name,
-                       std::forward_list<Net::Address> targets,
-                       const std::string& username,
-                       const uint8_t* password_pointer, size_t password_len,
-                       bool no_crypt) {
+ConnResult AttemptConnection(Display& display,
+                             const std::string& canon_name,
+                             std::forward_list<Net::Address> targets,
+                             const std::string& username,
+                             const uint8_t* password_pointer,
+                             size_t password_len, bool no_crypt) {
   bool server_sent_key = false;
   server_socket.Close();
 #ifdef __WIN32__
@@ -242,7 +242,7 @@ bool AttemptConnection(Display& display,
     display.Statusf("");
     CLOSE_AUTOPASSFILE();
     Widgets::ModalInfo(display, std::string("All of our attempts to connect to the server failed. The error was: ")+err, MAC16_BLACK|(MAC16_ORANGE<<4));
-    return false;
+    return ConnResult::CONN_FAILURE;
   }
   display.Statusf("Performing handshake...");
   // we have a connection, do the handshake
@@ -275,7 +275,7 @@ bool AttemptConnection(Display& display,
         server_socket.Close();
         CLOSE_AUTOPASSFILE();
         display.Statusf("");
-        return false;
+        return ConnResult::OTHER_FAILURE;
       }
     } while(res != TTTP_HANDSHAKE_REJECTED && res != TTTP_HANDSHAKE_ADVANCE);
     server_sent_key = (res == TTTP_HANDSHAKE_ADVANCE);
@@ -285,7 +285,7 @@ bool AttemptConnection(Display& display,
         server_socket.Close();
         Widgets::ModalInfo(display, "The server has a hidden public key. In order to connect to this server, you must obtain the server's public key elsewhere (such as from its website, or from talking to its operator) and manually add it.\n\nThe option to add a public key for a server becomes visible on the main connection menu when the " PMOD " key is held.");
         CLOSE_AUTOPASSFILE();
-        return false;
+        return ConnResult::OTHER_FAILURE;
       }
       /* we have a public key on file, use it */
     }
@@ -296,12 +296,12 @@ bool AttemptConnection(Display& display,
         server_socket.Close();
         Widgets::ModalInfo(display, "The server is refusing to confirm its identity, even though it was perfectly happy to do so in the past. SOMEONE IS PROBABLY TRYING TO IMPERSONATE THIS SERVER!\n\nContact the server operator.\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
         CLOSE_AUTOPASSFILE();
-        return false;
+        return ConnResult::OTHER_FAILURE;
       }
       else if(!Widgets::ModalConfirm(display, "This server is refusing to authenticate itself. Its identity cannot be proven. Encryption is still technically possible, but there's no way to know who you're actually communicating with.\n\nAre you sure you want to continue connecting?")) {
         server_socket.Close();
         CLOSE_AUTOPASSFILE();
-        return false;
+        return ConnResult::OTHER_FAILURE;
       }
       display.Statusf("Performing handshake...");
     }
@@ -317,7 +317,7 @@ bool AttemptConnection(Display& display,
           char new_fingerprint[TTTP_FINGERPRINT_BUFFER_SIZE];
           tttp_get_key_fingerprint(filed_public_key, new_fingerprint);
           Widgets::ModalInfo(display, std::string("The server's public key has changed. Someone may be trying to impersonate this server... or the key may have changed due to unavoidable circumstances. Contact the server operator.\n\nOld fingerprint: ")+old_fingerprint+"\nNew fingerprint: "+new_fingerprint+"\n\nYOU SHOULD NOT ATTEMPT TO CONNECT AGAIN UNTIL THIS IS RESOLVED!", MAC16_BLACK|(MAC16_RED<<4));
-          return false;
+          return ConnResult::OTHER_FAILURE;
         }
       }
       else {
@@ -327,7 +327,7 @@ bool AttemptConnection(Display& display,
         if(Widgets::ModalConfirm(display, std::string("You have never connected to ")+canon_name+" before. Its public key fingerprint, which you can use to confirm the server's identity, is:\n\n"+fingerprint+"\n\nWould you like to remember this key, and continue connecting?"))
           PKDB::AddPublicKey(canon_name, public_key);
         else
-          return false;
+          return ConnResult::OTHER_FAILURE;
         display.Statusf("Performing handshake...");
       }
     }
@@ -346,7 +346,7 @@ bool AttemptConnection(Display& display,
       server_socket.Close();
       CLOSE_AUTOPASSFILE();
       display.Statusf("");
-      return false;
+      return ConnResult::OTHER_FAILURE;
     }
   } while(res != TTTP_HANDSHAKE_ADVANCE);
   uint32_t final_flags = tttp_client_get_flags(tttp);
@@ -359,7 +359,7 @@ bool AttemptConnection(Display& display,
                        " to the TTTP protocol. This client does not support"
                        " it.\n\nTry upgrading to a newer client.",
                        MAC16_BLACK|(MAC16_RED<<4));
-    return false;
+    return ConnResult::OTHER_FAILURE;
   }
   else if(final_flags & TTTP_FLAG_UNICODE) {
     server_socket.Close();
@@ -370,7 +370,7 @@ bool AttemptConnection(Display& display,
                        " only operate in 8-bit mode. You will need to use a"
                        " different client with this server.",
                        MAC16_BLACK|(MAC16_RED<<4));
-    return false;
+    return ConnResult::OTHER_FAILURE;
   }
   else if(final_flags & ~(TTTP_FLAG_ENCRYPTION|TTTP_FLAG_PRECISE_MOUSE)) {
     // these are the only flags we actually support
@@ -382,7 +382,7 @@ bool AttemptConnection(Display& display,
                        " protocol which this client does not support."
                        "\n\nTry upgrading to a newer client.",
                        MAC16_BLACK|(MAC16_RED<<4));
-    return false;
+    return ConnResult::OTHER_FAILURE;
   }
   if(!no_crypt && !(tttp_client_get_flags(tttp) & TTTP_FLAG_ENCRYPTION)) {
     if(!Widgets::ModalConfirm(display,
@@ -392,7 +392,7 @@ bool AttemptConnection(Display& display,
       server_socket.Close();
       CLOSE_AUTOPASSFILE();
       display.Statusf("");
-      return false;
+      return ConnResult::OTHER_FAILURE;
     }
   }
   if(!no_auth) {
@@ -410,7 +410,7 @@ bool AttemptConnection(Display& display,
           Widgets::ModalInfo(display,
                              "This server does not support username-based authentication. You might try connecting with an empty username.");
         display.Statusf("");
-        return false;
+        return ConnResult::AUTH_FAILURE;
       case TTTP_HANDSHAKE_CONTINUE:
         (void)Net::Select(nullptr,nullptr,nullptr,
                           &socks,nullptr,nullptr,nullptr);
@@ -419,7 +419,7 @@ bool AttemptConnection(Display& display,
         server_socket.Close();
         CLOSE_AUTOPASSFILE();
         display.Statusf("");
-        return false;
+        return ConnResult::OTHER_FAILURE;
       }
     } while(res != TTTP_HANDSHAKE_ADVANCE);
     if(autopassfile) {
@@ -444,7 +444,7 @@ bool AttemptConnection(Display& display,
         server_socket.Close();
         CLOSE_AUTOPASSFILE();
         display.Statusf("");
-        return false;
+        return ConnResult::OTHER_FAILURE;
       }
     }
     tttp_client_provide_password(tttp, password_pointer, password_len);
@@ -484,7 +484,7 @@ bool AttemptConnection(Display& display,
         Widgets::ModalInfo(display,
                            "Authentication failed. You entered an incorrect"
                            " username or password.");
-      return false;
+      return ConnResult::AUTH_FAILURE;
     case TTTP_HANDSHAKE_CONTINUE:
       (void)Net::Select(nullptr,nullptr,nullptr,
                         &socks,nullptr,nullptr,nullptr);
@@ -492,10 +492,10 @@ bool AttemptConnection(Display& display,
     default:
       server_socket.Close();
       display.Statusf("");
-      return false;
+      return ConnResult::OTHER_FAILURE;
     }
   } while(res != TTTP_HANDSHAKE_ADVANCE);
   // Connection succeeded!
   display.Statusf("");
-  return true;
+  return ConnResult::OK;
 }

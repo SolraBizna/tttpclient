@@ -208,6 +208,7 @@ class SecureLabeledField : public Widget {
     void reserve(size_t headroom);
     void insert(size_t i, size_t count, uint8_t c);
     void erase(size_t i, size_t count);
+    void clear();
   } content;
   std::function<void()> action;
   size_t cursor_pos;
@@ -219,6 +220,7 @@ public:
                      const std::string& label, const char* contents=nullptr);
   ~SecureLabeledField() override;
   void GetContent(const uint8_t*& outptr, size_t& outlen) const;
+  void Clear();
   void Draw() override;
   void SetIsEnabled(bool enabled);
   bool IsEnabled() const override;

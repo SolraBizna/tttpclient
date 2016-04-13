@@ -191,17 +191,18 @@ bool DoConnectionDialog(Display& display) {
     }
     DiscardingInputDelegate del;
     display.SetInputDelegate(&del);
-    bool ret = AttemptConnection(display,
-                                 autohost,
-                                 connection_targets,
-                                 autouser ? autouser : "",
-                                 autopassword
-                                ?reinterpret_cast<const uint8_t*>(autopassword)
-                                 : nullptr,
-                                 autopassword ? strlen(autopassword) : 0,
-                                 no_crypt);
+    auto result = AttemptConnection(display,
+                                    autohost,
+                                    connection_targets,
+                                    autouser ? autouser : "",
+                                    autopassword
+                                    ? reinterpret_cast<const uint8_t*>
+                                    (autopassword)
+                                    : nullptr,
+                                    autopassword ? strlen(autopassword) : 0,
+                                    no_crypt);
     display.SetInputDelegate(nullptr);
-    return ret;
+    return result == ConnResult::OK;
   }
   else {
     std::shared_ptr<Widgets::LabeledField> host_widget
@@ -371,17 +372,35 @@ bool DoConnectionDialog(Display& display) {
           size_t pp_utf8_len = convert_cp437_to_utf8(pp, pp_utf8, pl)-pp_utf8;
           DiscardingInputDelegate del;
           display.SetInputDelegate(&del);
-          bool ret = AttemptConnection(display,
-                                       canon_name,
-                                       connection_targets,
-                                       username_widget
-                                       ? username_widget->GetContent() : "",
-                                       pp, pl,
-                                       connecting_insecure);
+          auto result = AttemptConnection(display,
+                                          canon_name,
+                                          connection_targets,
+                                          username_widget
+                                          ? username_widget->GetContent() : "",
+                                          pp, pl,
+                                          connecting_insecure);
           display.SetInputDelegate(nullptr);
           lsx_explicit_bzero(pp_utf8, pp_utf8_len);
           safe_free(pp_utf8);
-          if(ret) return true;
+          switch(result) {
+          case ConnResult::OK: return true;
+          case ConnResult::AUTH_FAILURE:
+            if(password_widget && password_widget->IsEnabled()) {
+              password_widget->Clear();
+              container.SetFocusedWidget(password_widget);
+            }
+            else if(username_widget && username_widget->IsEnabled()) {
+              container.SetFocusedWidget(username_widget);
+            }
+            break;
+          case ConnResult::CONN_FAILURE:
+            if(host_widget && host_widget->IsEnabled()) {
+              container.SetFocusedWidget(host_widget);
+            }
+            break;
+          default:
+            break;
+          }
         }
       }
     } while(!cancelled);
