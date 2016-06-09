@@ -67,7 +67,8 @@ SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel,
                                  float max_fps)
   : Display(font.GetGlyphWidth(), font.GetGlyphHeight()),
     throttle_framerate(false), status_dirty(false), exposed(false),
-    cur_width(0), cur_height(0), prev_status_len(0), frametexture(NULL) {
+    cur_width(0), cur_height(0), prev_status_len(0), renderer(NULL),
+    frametexture(NULL), overlaytexture(NULL) {
   if(SDL_Init(SDL_INIT_VIDEO)) throw std::string(SDL_GetError());
   glyphpitch = glyph_width * glyph_height;
   if(glyphpitch / glyph_height != glyph_width)
@@ -140,7 +141,12 @@ SDLSoft_Display::SDLSoft_Display(Font& font, const char* title, bool accel,
     throw std::string(SDL_GetError());
   }
   SDL_RendererInfo info;
-  SDL_GetRendererInfo(renderer, &info);
+  if(SDL_GetRendererInfo(renderer, &info)) {
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+    safe_free(glyphdata);
+    throw std::string(SDL_GetError());
+  }
   if(max_fps < 0) {
     SDL_DisplayMode mode;
     mode.refresh_rate = 0;
