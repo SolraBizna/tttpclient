@@ -173,9 +173,7 @@ static int parse_command_line(int argc, char* argv[]) {
             break;
           }
           ++argv; --argc;
-          // undo_depth includes the current canvas
-          if(l != 0) undo_depth = l + 1;
-          else undo_depth = l;
+          chars_high = l;
         } break;
         case 'f': {
           if(argc <= 0) {
@@ -212,7 +210,9 @@ static int parse_command_line(int argc, char* argv[]) {
             break;
           }
           ++argv; --argc;
-          undo_depth = l;
+          // undo_depth includes the current canvas
+          if(l != 0) undo_depth = l + 1;
+          else undo_depth = l;
         } break;
         case 'v':
           std::cout << "Paint, from TTTPClient " TTTP_CLIENT_VERSION << std::endl;
