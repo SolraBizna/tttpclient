@@ -500,6 +500,12 @@ static const uint8_t status_colors[Display::MAX_STATUS_LINE_LENGTH+2] = {
 
 void SDLSoft_Display::Pump(bool wait, int timeout_ms) {
   bool need_present = exposed;
+  if(exposed) {
+    dirty_left = 0;
+    dirty_top = 0;
+    dirty_right = cur_width-1;
+    dirty_bot = cur_height-1;
+  }
   if(dirty_left <= dirty_right && dirty_top <= dirty_bot) {
     if(status_dirty && dirty_bot >= cur_height-1
        && GetStatusLine().length() < prev_status_len) {
