@@ -263,7 +263,7 @@ static int parse_command_line(int argc, char* argv[]) {
     std::cerr << "  -f <font>: Use a different font. Font must be tttpclient compatible." << std::endl;
     std::cerr << "  -w <width>: Use a screen width other than 80 chars. Ignored if a .frm is" << std::endl;
     std::cerr << "loaded." << std::endl;
-    std::cerr << "  -h <height>: Use a screen height other than 24 chars. Ignored if a .fr is" << std::endl;
+    std::cerr << "  -h <height>: Use a screen height other than 24 chars. Ignored if a .frm is" << std::endl;
     std::cerr << "loaded." << std::endl;
     std::cerr << "  -u <count>: Number of undo levels to keep (default 100)" << std::endl;
   }
