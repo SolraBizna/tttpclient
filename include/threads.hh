@@ -21,8 +21,12 @@
 // Include appropriate headers for threading, whether on MinGW or other
 // platforms
 #if USE_MINGW_STD_THREADS
+#ifndef EPROTO
 #define EPROTO WSAEPROTONOSUPPORT
+#endif
+#ifndef EOWNERDEAD
 #define EOWNERDEAD WSAEPROTONOSUPPORT
+#endif
 #include "mingw.thread.h"
 #else
 #include <thread>

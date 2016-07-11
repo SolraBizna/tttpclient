@@ -1,18 +1,18 @@
 # Compiler used to compile C code.
-CC=gcc
+CC=i686-w64-mingw32-gcc-posix
 # Compiler used to compile C++ code.
-CXX=g++
+CXX=i686-w64-mingw32-g++-posix
 # Linker used. (This will usually be the same as the C++ compiler.)
-LD=g++
+LD=i686-w64-mingw32-g++-posix
 # Library archiver used
-AR=ar
+AR=i686-w64-mingw32-gcc-ar
 
 # Flags passed to all calls that involve a C preprocessor.
-CPPFLAGS=-MP -MMD -Iinclude/ -Imingw-std-threads/ -Isrc/teg/ -Ilsx/include -Ilibtttp -D_UNICODE -DUNICODE -DMINGW -D_WIN32_WINNT=0x0501 -DUSE_MINGW_STD_THREADS
+CPPFLAGS=-MP -MMD -I/opt/releng/w32/include -Iinclude/ -Imingw-std-threads/ -Isrc/teg/ -Ilsx/include -Ilibtttp -D_UNICODE -DUNICODE -DMINGW -D_WIN32_WINNT=0x0501 -DUSE_MINGW_STD_THREADS
 CPPFLAGS_DEBUG=-DDEBUG=1
 CPPFLAGS_RELEASE=-DRELEASE=1 -DNDEBUG=1
 # Flags passed to the C compiler.
-CFLAGS=`sdl2-config --cflags` -Wall -Wextra -Werror -Wno-multichar -c
+CFLAGS=-I/opt/releng/w32/include/SDL2 -Dmain=SDL_main -Wall -Wextra -Werror -Wno-multichar -c
 CFLAGS_DEBUG=-ggdb
 CFLAGS_RELEASE=
 # Flags passed the C++ compiler.
@@ -24,7 +24,7 @@ LDFLAGS=-mwindows
 LDFLAGS_DEBUG=-ggdb
 LDFLAGS_RELEASE=
 # Libraries.
-LIBS=-lmingw32 -lws2_32 /bin/SDL2.dll -lopengl32 -lglu32 -lpng -lz -lgmp /bin/sqlite3.dll
+LIBS=-L/opt/releng/w32/lib -lmingw32 -lws2_32 /opt/releng/w32/bin/SDL2.dll -lopengl32 -lglu32 -lpng -lz -lgmp /opt/releng/w32/bin/sqlite3.dll
 # Flags passed to the library archiver
 ARFLAGS=-rsc
 
