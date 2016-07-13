@@ -12,7 +12,7 @@ CPPFLAGS=-MP -MMD -I/opt/releng/w32/include -Iinclude/ -Imingw-std-threads/ -Isr
 CPPFLAGS_DEBUG=-DDEBUG=1
 CPPFLAGS_RELEASE=-DRELEASE=1 -DNDEBUG=1
 # Flags passed to the C compiler.
-CFLAGS=-I/opt/releng/w32/include/SDL2 -Dmain=SDL_main -Wall -Wextra -Werror -Wno-multichar -c
+CFLAGS=-I/opt/releng/w32/include/SDL2 -Dmain=SDL_main -Wall -Wextra -Werror -Wno-multichar -municode -c
 CFLAGS_DEBUG=-ggdb
 CFLAGS_RELEASE=
 # Flags passed the C++ compiler.
@@ -20,7 +20,7 @@ CXXFLAGS=$(CFLAGS) -std=gnu++11 -Woverloaded-virtual -Wno-pmf-conversions
 CXXFLAGS_DEBUG=$(CFLAGS_DEBUG)
 CXXFLAGS_RELEASE=$(CFLAGS_RELEASE) -fno-enforce-eh-specs
 # Flags passed to the linker.
-LDFLAGS=-mwindows
+LDFLAGS=-mwindows -municode
 LDFLAGS_DEBUG=-ggdb
 LDFLAGS_RELEASE=
 # Libraries.
