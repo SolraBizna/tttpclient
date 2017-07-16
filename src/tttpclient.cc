@@ -473,6 +473,7 @@ int teg_main(int argc, char* argv[]) {
       no_crypt = no_auth = true;
     }
     if(DoConnectionDialog(*display)) {
+      PKDB::Fini();
       LibTTTPInputDelegate del;
       tttp_client_set_core_callbacks(tttp, pltt_callback, fram_callback,
                                      kick_callback);
